@@ -1,0 +1,16 @@
+{
+	"name": "daveappserver",
+	"description": "Factored code that was appearing in all my servers.",
+	"version": "0.4.3",
+	"main": "appserver.js",
+	"files": [
+		"appserver.js"
+		],
+	"dependencies" : {
+		"request": "*",
+		"nodejs-websocket": "*",
+		"daveutils": "*",
+		"davetwitter": "*",
+		"davehttp": "*"
+		}
+	}
