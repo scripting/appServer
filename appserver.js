@@ -1,4 +1,4 @@
-var myVersion = "0.4.3", myProductName = "daveAppServer";
+var myVersion = "0.4.4", myProductName = "daveAppServer";
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
