@@ -1,8 +1,9 @@
-var myVersion = "0.4.4", myProductName = "daveAppServer";
+var myVersion = "0.4.5", myProductName = "daveAppServer";
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
 exports.saveStats = saveStats;
+exports.getConfig = getConfig;
 
 const fs = require ("fs");
 const request = require ("request");
@@ -43,6 +44,9 @@ function saveStats (theStats) {
 		stats [x] = theStats [x];
 		}
 	statsChanged ();
+	}
+function getConfig () {
+	return (config);
 	}
 function httpReadUrl (url, callback) {
 	request (url, function (err, response, data) {

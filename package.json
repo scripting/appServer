@@ -1,9 +1,12 @@
 {
 	"name": "daveappserver",
 	"description": "Factored code that was appearing in all my servers.",
-	"version": "0.4.4",
+	"version": "0.4.5",
 	"main": "appserver.js",
-	"repository": "https://github.com/scripting/appServer",
+	"repository": {
+		"type" : "git",
+		"url" : "https://github.com/scripting/appServer"
+		},
 	"license": "MIT",
 	"files": [
 		"appserver.js"
