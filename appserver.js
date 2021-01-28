@@ -1,4 +1,4 @@
-var myVersion = "0.4.8", myProductName = "daveAppServer";
+var myVersion = "0.5.1", myProductName = "daveAppServer";
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -267,6 +267,10 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 			var f = getFilePath (screenname, relpath, flprivate);
 			fs.readFile (f, function (err, filetext) {
 				if (err) {
+					if (err.code == "ENOENT") {
+						err.status = 500;
+						err.code = "NoSuchKey";
+						}
 					callback (err);
 					}
 				else {
@@ -419,7 +423,6 @@ function startup (options, callback) {
 					}
 				});
 			}
-		
 		
 		if (config.httpRequest !== undefined) {
 			if (config.httpRequest (theRequest)) { //consumed by callback
