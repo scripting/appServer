@@ -48,6 +48,60 @@
 				flUseSockets: true
 				}
 			
+			function httpRequest (url, timeout, headers, callback) {
+				timeout = (timeout === undefined) ? 30000 : timeout;
+				var jxhr = $.ajax ({ 
+					url: url,
+					dataType: "text", 
+					headers,
+					timeout
+					}) 
+				.success (function (data, status) { 
+					callback (undefined, data);
+					}) 
+				.error (function (status) { 
+					var err = {
+						code: status.status,
+						message: JSON.parse (status.responseText).message
+						};
+					callback (err);
+					});
+				}
+			function servercall (path, params, flAuthenticated, callback) {
+				if (params === undefined) {
+					params = new Object ();
+					}
+				
+				if (flAuthenticated) { //1/11/21 by DW
+					params.oauth_token = localStorage.twOauthToken;
+					params.oauth_token_secret = localStorage.twOauthTokenSecret;
+					}
+				
+				var url = appConsts.urlServer + path + "?" + twBuildParamList (params, false);
+				console.log ("servercall: url == " + url); //1/18/21 by DW
+				httpRequest (url, undefined, undefined, function (err, jsontext) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						callback (undefined, JSON.parse (jsontext));
+						}
+					});
+				}
+			function getSlogan (callback) {
+				servercall ("slogan", undefined, false, callback);
+				}
+			function viewSlogan () {
+				getSlogan (function (err, jstruct) {
+					if (err) {
+						alertDialog (err.message);
+						}
+					else {
+						alertDialog (jstruct.slogan);
+						}
+					});
+				}
+			
 			function updateTwitterLogin () {
 				if (appConsts.flEnableLogin) {
 					initTwitterMenuItems ();
@@ -80,6 +134,8 @@
 								<li class="dropdown" id="idMainMenu"> 
 									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Menu&nbsp;<b class="caret"></b></a>
 									<ul class="dropdown-menu">
+										<li><a onclick="viewSlogan ()">Slogan...</a></li>
+										<li class="divider"></li>
 										<li><a onclick="alertDialog ('One')">One...</a></li>
 										<li><a onclick="alertDialog ('Two')">Two...</a></li>
 										<li class="divider"></li>
