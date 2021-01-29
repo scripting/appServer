@@ -1,0 +1,119 @@
+<html>
+	<head>
+		<title>[%productNameForDisplay%]</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		
+		
+		<script src="//s3.amazonaws.com/scripting.com/code/includes/jquery-1.9.1.min.js"></script>
+<link href="//s3.amazonaws.com/scripting.com/code/includes/bootstrap.css" rel="stylesheet">
+<script src="//s3.amazonaws.com/scripting.com/code/includes/bootstrap.min.js"></script>
+
+<link rel="stylesheet" href="//s3.amazonaws.com/scripting.com/code/fontawesome/css/all.css">
+<link href="//fonts.googleapis.com/css?family=Ubuntu:400,500i,700" rel="stylesheet">
+<link href="//fonts.googleapis.com/css?family=Rancho" rel="stylesheet">
+
+<script src="//s3.amazonaws.com/scripting.com/code/includes/basic/code.js"></script>
+<link href="//s3.amazonaws.com/scripting.com/code/includes/basic/styles.css" rel="stylesheet" type="text/css">
+
+		
+		<script src="http://fargo.io/code/storage/api.js"></script>
+		
+		<style>
+			body {
+				font-family: Ubuntu;
+				font-size: 20px;
+				background-color: whitesmoke;
+				}
+			.divPageBody {
+				margin-top: 200px;
+				width: 50%;
+				margin-left: auto;
+				margin-right: auto;
+				}
+			.divVersionNumber {
+				font-size: 12px;
+				float: right;
+				padding: 19px;
+				}
+			</style>
+		<script>
+			var appConsts = {
+				productname: "[%productName%]",
+				productnameForDisplay: "[%productNameForDisplay%]",
+				version: "[%version%]",
+				urlServer: "[%urlServerForClient%]",
+				urlSocketServer: "[%urlWebsocketServerForClient%]",
+				flEnableLogin: [%flEnableLogin%],
+				flUseSockets: true
+				}
+			
+			function updateTwitterLogin () {
+				if (appConsts.flEnableLogin) {
+					initTwitterMenuItems ();
+					}
+				}
+			function everySecond () {
+				updateTwitterLogin ()
+				}
+			function startup () {
+				console.log ("startup");
+				initMenus ();
+				updateTwitterLogin ();
+				twStorageData.urlTwitterServer = appConsts.urlServer;
+				twGetOauthParams ();
+				self.setInterval (everySecond, 1000);
+				}
+			</script>
+		</head>
+	<body>
+		<div class="divMenubar" id="idMenubar">
+			<div class="topbar-wrapper" style="z-index: 5;">
+				<div class="navbar navbar-fixed-top" data-dropdown="dropdown">
+					<div class="divVersionNumber" id="idVersionNumber">
+						[%version%]
+						</div>
+					<div class="navbar-inner">
+						<div class="container">
+							<a class="brand" onclick="clickHome ()"><span id="idMenuProductName">[%productNameForDisplay%]</span></a>
+							<ul class="nav" id="idMainMenuList">
+								<li class="dropdown" id="idMainMenu"> 
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Menu&nbsp;<b class="caret"></b></a>
+									<ul class="dropdown-menu">
+										<li><a onclick="alertDialog ('One')">One...</a></li>
+										<li><a onclick="alertDialog ('Two')">Two...</a></li>
+										<li class="divider"></li>
+										<li><a onclick="alertDialog ('Three')">Three...</a></li>
+										</ul>
+									</li>
+								</ul>
+							<ul class="nav pull-right">
+								<li class="dropdown">
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown"><span id="idTwitterIcon"></span><span id="idTwitterUsername"></span>&nbsp;<b class="caret"></b></a>
+									<ul class="dropdown-menu">
+										<li><a onclick="aboutDialog ();">About <span id="idMenuAboutProductName"></span>...</a></li>
+										<li class="divider"></li>
+										<li><a onclick="twToggleConnectCommand ();" id="idTwitterConnectMenuItem"></a></li>
+										</ul>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		
+		<div class="divPageBody">
+			<center>
+				<p>This is the home page for an example app for <a href="https://github.com/scripting/appServer">daveAppServer</a>.</p>
+				</center>
+			</div>
+		
+		<script>
+			$(document).ready (function () {
+				
+				startup ();
+				});
+			</script>
+		</body>
+	</html>

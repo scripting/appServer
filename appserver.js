@@ -1,4 +1,4 @@
-var myVersion = "0.5.1", myProductName = "daveAppServer";
+var myVersion = "0.5.2", myProductName = "daveAppServer";
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -20,6 +20,7 @@ const whenStart = new Date ();
 var config = {
 	productName: "randomApp",
 	productNameForDisplay: "Random App",
+	version: myVersion,
 	prefsPath: "prefs.json",
 	docsPath: "myDocs/",
 	flLogToConsole: true,
@@ -34,7 +35,7 @@ var config = {
 	blockedAddresses: [], 
 	flForceTwitterLogin: true,
 	
-	flStorageEnabled: true, //1/23/21 by DW -- designed to work with nodeStorage installations as they are
+	flStorageEnabled: true,
 	privateFilesPath: "privateFiles/users/",
 	publicFilesPath: "publicFiles/users/"
 	};

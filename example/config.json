@@ -1,0 +1,18 @@
+{
+	"productName": "testDaveAppserver",
+	"productNameForDisplay": "Example App",
+
+	"urlServerHomePageSource": "http://scripting.com/code/daveappserver/example/index.html",
+
+	"prefsPath": "prefs.json",
+	"docsPath": "myDocs/",
+
+	"port": 1229,
+	"flWebsocketEnabled": true,
+	"websocketPort": 1230,
+
+	"myDomain": "localhost:1229",
+
+	"twitterConsumerKey": "abcdefghijklmnopqrstufwxy",
+	"twitterConsumerSecret": "abcdefghijklmnopqrstufwxyabcdefghijklmnopqrstufwxy"
+	}
