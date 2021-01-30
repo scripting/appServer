@@ -42,12 +42,22 @@
 				productname: "[%productName%]",
 				productnameForDisplay: "[%productNameForDisplay%]",
 				version: "[%version%]",
-				urlServer: "[%urlServerForClient%]",
+				urlTwitterServer: "[%urlServerForClient%]",
 				urlSocketServer: "[%urlWebsocketServerForClient%]",
 				flEnableLogin: [%flEnableLogin%],
 				flUseSockets: true
 				}
+			var appPrefs = {
+				ctStartups: 0,
+				whenLastStartup: undefined,
+				lastPublishedText: ""
+				}
 			
+			var myNodeStorageApp = undefined;
+			
+			function prefsChanged () {
+				myNodeStorageApp.prefsChanged ();
+				}
 			function httpRequest (url, timeout, headers, callback) {
 				timeout = (timeout === undefined) ? 30000 : timeout;
 				var jxhr = $.ajax ({ 
@@ -101,6 +111,25 @@
 						}
 					});
 				}
+			function uploadFile (path, filetext, type, flprivate, callback) {
+				twUploadFile (path, filetext, type, flprivate, function (data) {
+					console.log ("uploadFile: data == " + jsonStringify (data));
+					if (callback !== undefined) {
+						callback (data);
+						}
+					});
+				}
+			function testUploadFile () {
+				askDialog ("Text you would like to publish:", appPrefs.lastPublishedText, "Some text you'd like to publish.", function (theText, flcancel) {
+					if (!flcancel) {
+						appPrefs.lastPublishedText = theText;
+						prefsChanged ();
+						uploadFile ("testfile.txt", theText, "text/plain", false, function (data) {
+							window.open (data.url);
+							});
+						}
+					});
+				}
 			
 			function updateTwitterLogin () {
 				if (appConsts.flEnableLogin) {
@@ -112,11 +141,18 @@
 				}
 			function startup () {
 				console.log ("startup");
-				initMenus ();
-				updateTwitterLogin ();
-				twStorageData.urlTwitterServer = appConsts.urlServer;
-				twGetOauthParams ();
-				self.setInterval (everySecond, 1000);
+				myNodeStorageApp = new nodeStorageApp (appConsts, appPrefs);
+				myNodeStorageApp.everySecond = everySecond;
+				myNodeStorageApp.start (function (flConnected) {
+					if (flConnected) {
+						appPrefs.ctStartups++;
+						appPrefs.whenLastStartup = new Date ();
+						prefsChanged ();
+						}
+					else {
+						updateTwitterLogin ();
+						}
+					});
 				}
 			</script>
 		</head>
@@ -135,6 +171,7 @@
 									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Menu&nbsp;<b class="caret"></b></a>
 									<ul class="dropdown-menu">
 										<li><a onclick="viewSlogan ()">Slogan...</a></li>
+										<li><a onclick="testUploadFile ()">Publish...</a></li>
 										<li class="divider"></li>
 										<li><a onclick="alertDialog ('One')">One...</a></li>
 										<li><a onclick="alertDialog ('Two')">Two...</a></li>
