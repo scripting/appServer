@@ -1,4 +1,4 @@
-var myVersion = "0.5.2", myProductName = "daveAppServer";
+var myVersion = "0.5.3", myProductName = "daveAppServer";
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -476,7 +476,7 @@ function startup (options, callback) {
 									returnData ({}); //return nothing
 									}
 								else {
-									returnData (data);
+									returnData ({data});
 									}
 								});
 							});
