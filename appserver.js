@@ -1,4 +1,4 @@
-var myVersion = "0.5.3", myProductName = "daveAppServer";
+var myVersion = "0.5.4", myProductName = "daveAppServer"; 
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -537,6 +537,9 @@ function startup (options, callback) {
 			flStatsChanged = false;
 			fs.writeFile (fnameStats, utils.jsonStringify (stats), function () {
 				});
+			}
+		if (config.everySecond !== undefined) {
+			config.everySecond ();
 			}
 		}
 	
