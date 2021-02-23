@@ -1,4 +1,4 @@
-var myVersion = "0.5.4", myProductName = "daveAppServer"; 
+var myVersion = "0.5.6", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -14,6 +14,7 @@ const utils = require ("daveutils");
 const davehttp = require ("davehttp");
 const davetwitter = require ("davetwitter");
 const filesystem = require ("davefilesystem"); 
+const folderToJson = require ("foldertojson");
 
 const whenStart = new Date ();
 
@@ -298,9 +299,62 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 						});
 					}
 				});
-			console.log ("getFileList: folder == " + folder + ", returnedList == " + utils.jsonStringify (returnedList));
 			if (callback != undefined) {
 				callback (undefined, returnedList);
+				}
+			});
+		}
+	function makeFilePublic (screenname, relpath, callback) { //2/20/21 by DW
+		console.log ("makeFilePublic: relpath == " + relpath);
+		getFile (screenname, relpath, false, function (err, data) {
+			var urlpublic = config.urlServerForClient + screenname + "/" + relpath;
+			if (err) { //public file doesn't exist, read the private file
+				getFile (screenname, relpath, true, function (err, filetext) {
+					if (err) { //file not there, can't make the file public
+						var message = "Can't make the file public because we can't read the private file.";
+						console.log ("makeFilePublic: err.message == " + err.message);
+						callback ({message});
+						}
+					else {
+						publishFile (screenname, relpath, "text/plain", false, filetext, function (err, data) {
+							if (err) {
+								var message = "Can't make the file public because we can't write the new file.";
+								callback ({message});
+								}
+							else {
+								callback (undefined, {url: urlpublic});
+								}
+							});
+						}
+					});
+				}
+			else { //it exists, return the public url of the file
+				callback (undefined, {url: urlpublic});
+				}
+			});
+		}
+	function getFileHierarchy (screenname, callback) { //2/21/21 by DW
+		folderToJson.getObject (config.privateFilesPath + screenname + "/", function (err, privateSubs) {
+			if (err) {
+				callback (err);
+				}
+			else {
+				folderToJson.getObject (config.publicFilesPath + screenname + "/", function (err, publicSubs) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						var theHierarchy = {
+							publicFiles: {
+								subs: publicSubs
+								},
+							privateFiles: {
+								subs: privateSubs
+								}
+							};
+						callback (undefined, theHierarchy);
+						}
+					});
 				}
 			});
 		}
@@ -484,6 +538,16 @@ function startup (options, callback) {
 					case "/getfilelist": 
 						callWithScreenname (function (screenname) {
 							getFileList (screenname, flprivate, httpReturn);
+							});
+						return (true); 
+					case "/makefilepublic": //2/20/21 by DW
+						callWithScreenname (function (screenname) {
+							makeFilePublic (screenname, params.relpath, httpReturn);
+							});
+						return (true); 
+					case "/getfilehierarchy": //2/21/21 by DW
+						callWithScreenname (function (screenname) {
+							getFileHierarchy (screenname, httpReturn);
 							});
 						return (true); 
 					}
