@@ -1,4 +1,4 @@
-var myVersion = "0.5.6", myProductName = "daveAppServer";  
+var myVersion = "0.5.9", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -358,6 +358,104 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 				}
 			});
 		}
+	function deleteFile (screenname, relpath, callback) { //2/23/21 by DW
+		if (config.flStorageEnabled) {
+			function deleteone (flprivate, callback) {
+				var f = getFilePath (screenname, relpath, flprivate);
+				fs.unlink (f, callback);
+				}
+			deleteone (true, function (errPrivate) {
+				deleteone (false, function (errPublic) {
+					if (errPrivate && errPublic) {
+						callback ({message: "Can't delete the file because it doesn't exist."});
+						}
+					else {
+						callback (undefined);
+						}
+					});
+				});
+			}
+		else {
+			callback ({message: "Can't delete the file because the feature is not enabled on the server."});
+			}
+		}
+	function readWholeFile (screenname, relpath, callback) { //2/24/21 by DW
+		if (config.flStorageEnabled) {
+			function readone (flprivate, callback) {
+				var f = getFilePath (screenname, relpath, flprivate);
+				fs.readFile (f, function (err, filetext) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						filetext = filetext.toString (); //it's a buffer
+						callback (undefined, {filetext});
+						}
+					});
+				}
+			readone (false, function (err, fileinfo) { //look for public version first
+				if (err) {
+					readone (true, function (err, fileinfo) { //look for private version
+						if (err) {
+							callback ({message: "Can't read the file because it doesn't exist."});
+							}
+						else {
+							callback (undefined, fileinfo);
+							}
+						});
+					}
+				else {
+					callback (undefined, fileinfo);
+					}
+				});
+			}
+		else {
+			callback ({message: "Can't read the file because the feature is not enabled on the server."});
+			}
+		}
+	function storageMustBeEnabled (namefunction, httpReturn, callback) {
+		if (config.flStorageEnabled) {
+			callback ();
+			}
+		else {
+			httpReturn ({message: "Can't " + namefunction + " the file because the feature is not enabled on the server."});
+			}
+		}
+	function writeWholeFile (screenname, relpath, filetext, callback) {
+		storageMustBeEnabled ("write", callback, function () {
+			function readone (flprivate, callback) {
+				var f = getFilePath (screenname, relpath, flprivate);
+				fs.readFile (f, function (err, filetext) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						filetext = filetext.toString (); //it's a buffer
+						callback (undefined, {filetext});
+						}
+					});
+				}
+			function writethefile (flprivate) {
+				var f = getFilePath (screenname, relpath, flprivate);
+				fs.writeFile (f, filetext, function (err) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						callback (undefined);
+						}
+					});
+				}
+			readone (false, function (err, data) {
+				if (err) { //write a private file
+					writethefile (true);
+					}
+				else { //public version exists
+					writethefile (false);
+					}
+				});
+			});
+		}
 
 function startup (options, callback) {
 	function readConfig (f, theConfig, flReportError, callback) { 
@@ -499,6 +597,11 @@ function startup (options, callback) {
 								});
 							});
 						return (true);
+					case "/writewholefile": //2/25/21 by DW -- special way to write a file, for scripting
+						callWithScreenname (function (screenname) {
+							writeWholeFile (screenname, params.relpath, theRequest.postBody.toString (), httpReturn);
+							});
+						return (true);
 					}
 				break;
 			case "get":
@@ -548,6 +651,16 @@ function startup (options, callback) {
 					case "/getfilehierarchy": //2/21/21 by DW
 						callWithScreenname (function (screenname) {
 							getFileHierarchy (screenname, httpReturn);
+							});
+						return (true); 
+					case "/deletefile": //2/23/21 by DW
+						callWithScreenname (function (screenname) {
+							deleteFile (screenname, params.relpath, httpReturn);
+							});
+						return (true); 
+					case "/readwholefile": //2/24/21 by DW
+						callWithScreenname (function (screenname) {
+							readWholeFile (screenname, params.relpath, httpReturn);
 							});
 						return (true); 
 					}
