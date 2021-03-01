@@ -1,4 +1,4 @@
-var myVersion = "0.5.9", myProductName = "daveAppServer";  
+var myVersion = "0.5.11", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -122,6 +122,27 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 				}
 			});
 		}
+	}
+function getDomainNameVerb (clientIp, callback) { //2/27/21 by DW
+	dns.reverse (clientIp, function (err, domains) {
+		if (err) {
+			callback (err);
+			}
+		else {
+			var name = (domains.length > 0) ? name = domains [0] : clientIp;
+			callback (undefined, {name});
+			}
+		});
+	}
+function getDottedIdVerb (name, callback) { //2/27/21 by DW
+	dns.lookup (name, null, function (err, dottedid) {
+		if (err) {
+			callback (err);
+			}
+		else {
+			callback (undefined, {dottedid});
+			}
+		});
 	}
 
 //sockets
@@ -661,6 +682,21 @@ function startup (options, callback) {
 					case "/readwholefile": //2/24/21 by DW
 						callWithScreenname (function (screenname) {
 							readWholeFile (screenname, params.relpath, httpReturn);
+							});
+						return (true); 
+					case "/httpreadurl": //2/26/21 by DW
+						callWithScreenname (function (screenname) {
+							httpReadUrl (params.url, httpReturn);
+							});
+						return (true); 
+					case "/getdomainname": //2/27/21 by DW
+						callWithScreenname (function (screenname) {
+							getDomainNameVerb (params.dottedid, httpReturn);
+							});
+						return (true); 
+					case "/getdottedid": //2/27/21 by DW
+						callWithScreenname (function (screenname) {
+							getDottedIdVerb (params.name, httpReturn);
 							});
 						return (true); 
 					}
