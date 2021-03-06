@@ -1,4 +1,4 @@
-var myVersion = "0.5.11", myProductName = "daveAppServer";  
+var myVersion = "0.5.12", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -148,16 +148,18 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 //sockets
 	var theWsServer = undefined;
 	
-	function notifySocketSubscribers (verb, jstruct) {
+	function notifySocketSubscribers (verb, payload, flPayloadIsString) {
 		if (theWsServer !== undefined) {
-			var ctUpdates = 0, now = new Date (), jsontext = "";
-			if (jstruct !== undefined) { 
-				jsontext = utils.jsonStringify (jstruct);
+			var ctUpdates = 0, now = new Date ();
+			if (payload !== undefined) { 
+				if (!flPayloadIsString) {
+					payload = utils.jsonStringify (payload);
+					}
 				}
 			theWsServer.connections.forEach (function (conn, ix) {
 				if (conn.appData !== undefined) { //it's one of ours
 					try {
-						conn.sendText (verb + "\r" + jsontext);
+						conn.sendText (verb + "\r" + payload);
 						conn.appData.whenLastUpdate = now;
 						conn.appData.ctUpdates++;
 						ctUpdates++;
@@ -271,7 +273,7 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 					else {
 						var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
 						if (!flprivate) {
-							notifySocketSubscribers ("update", filetext);
+							notifySocketSubscribers ("update", filetext, true); //3/6/2 by DW -- payload is a string
 							}
 						callback (undefined, {
 							url,
