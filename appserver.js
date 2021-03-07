@@ -1,4 +1,4 @@
-var myVersion = "0.5.12", myProductName = "daveAppServer";  
+var myVersion = "0.5.14", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -148,30 +148,35 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 //sockets
 	var theWsServer = undefined;
 	
-	function notifySocketSubscribers (verb, payload, flPayloadIsString) {
+	function notifySocketSubscribers (verb, payload, flPayloadIsString, callbackToQualify) {
 		if (theWsServer !== undefined) {
-			var ctUpdates = 0, now = new Date ();
+			var ctUpdates = 0, now = new Date (), ctTotalSockets = 0;
 			if (payload !== undefined) { 
 				if (!flPayloadIsString) {
 					payload = utils.jsonStringify (payload);
 					}
 				}
 			theWsServer.connections.forEach (function (conn, ix) {
+				ctTotalSockets++;
 				if (conn.appData !== undefined) { //it's one of ours
-					try {
-						conn.sendText (verb + "\r" + payload);
-						conn.appData.whenLastUpdate = now;
-						conn.appData.ctUpdates++;
-						ctUpdates++;
+					var flnotify = true;
+					if (callbackToQualify !== undefined) {
+						flnotify = callbackToQualify (conn);
 						}
-					catch (err) {
-						console.log ("notifySocketSubscribers: socket #" + i + ": error updating");
+					if (flnotify) {
+						try {
+							conn.sendText (verb + "\r" + payload);
+							conn.appData.whenLastUpdate = now;
+							conn.appData.ctUpdates++;
+							ctUpdates++;
+							}
+						catch (err) {
+							console.log ("notifySocketSubscribers: socket #" + i + ": error updating");
+							}
 						}
 					}
 				});
-			if (ctUpdates > 0) {
-				console.log ("\nnotifySocketSubscribers: " + ctUpdates + " sockets were updated.\n");
-				}
+			console.log ("\nnotifySocketSubscribers: " + ctUpdates + " of " + ctTotalSockets + " sockets were updated.\n");
 			}
 		}
 	function checkWebSocketCalls () { //expire timed-out calls
@@ -273,7 +278,18 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 					else {
 						var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
 						if (!flprivate) {
-							notifySocketSubscribers ("update", filetext, true); //3/6/2 by DW -- payload is a string
+							notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
+								
+								return (true); //this needs to be debugged, so for now we update all listeners, it's wrong -- 3/6/21 by DW
+								
+								console.log ("publishFile: conn.appData.urlToWatch == " + conn.appData.urlToWatch + ", url == " + url); 
+								if (conn.appData.urlToWatch == url) {
+									return (true);
+									}
+								else {
+									return (false);
+									}
+								});
 							}
 						callback (undefined, {
 							url,
