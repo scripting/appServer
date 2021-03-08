@@ -1,4 +1,4 @@
-var myVersion = "0.5.14", myProductName = "daveAppServer";  
+var myVersion = "0.5.15", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -15,6 +15,7 @@ const davehttp = require ("davehttp");
 const davetwitter = require ("davetwitter");
 const filesystem = require ("davefilesystem"); 
 const folderToJson = require ("foldertojson");
+const zip = require ("davezip");
 
 const whenStart = new Date ();
 
@@ -495,6 +496,23 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 				});
 			});
 		}
+	function getUserData (screenname, callback) { //4/14/20 by DW
+		storageMustBeEnabled ("get user data", callback, function () {
+			const tmpfolder = "tmp/", archivefile = tmpfolder + screenname + ".zip"; 
+			utils.sureFilePath (archivefile, function () {
+				var theArchive = zip.createArchive (archivefile, function (err, data) {
+					if (callback !== undefined) {
+						callback (err, archivefile);
+						}
+					});
+				var pathPublicFiles = getFilePath (screenname, "", false);
+				var pathPrivateFiles = getFilePath (screenname, "", true);
+				theArchive.addDirectoryToArchive (pathPublicFiles, "Public Files");
+				theArchive.addDirectoryToArchive (pathPrivateFiles, "Private Files");
+				theArchive.finalize ();
+				});
+			});
+		}
 
 function startup (options, callback) {
 	function readConfig (f, theConfig, flReportError, callback) { 
@@ -583,6 +601,16 @@ function startup (options, callback) {
 			else {
 				returnData (jstruct);
 				}
+			}
+		function httpReturnZipFile (f) { //4/13/20 by DW
+			fs.readFile (f, function (err, data) {
+				if (err) {
+					returnError (err);
+					}
+				else {
+					theRequest.httpReturn (200, "application/zip", data);
+					}
+				});
 			}
 		function returnServerHomePage () {
 			request (config.urlServerHomePageSource, function (error, response, templatetext) {
@@ -715,6 +743,18 @@ function startup (options, callback) {
 					case "/getdottedid": //2/27/21 by DW
 						callWithScreenname (function (screenname) {
 							getDottedIdVerb (params.name, httpReturn);
+							});
+						return (true); 
+					case "/myfiles": //3/7/21 by DW
+						callWithScreenname (function (screenname) {
+							getUserData (screenname, function (err, zipfile) {
+								if (err) {
+									errorResponse (err);
+									}
+								else {
+									httpReturnZipFile (zipfile);
+									}
+								});
 							});
 						return (true); 
 					}
