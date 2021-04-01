@@ -1,4 +1,4 @@
-var myVersion = "0.5.15", myProductName = "daveAppServer";  
+var myVersion = "0.5.19", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -267,6 +267,27 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 		const f = folder + screenname + "/" + relpath;
 		return (f);
 		}
+	function findFile (screenname, relpath, callback) { //4/1/21 by DW
+		var f = getFilePath (screenname, relpath, false); //public version
+		fs.stat (f, function (err, stats) {
+			if (err) {
+				f = getFilePath (screenname, relpath, true); //private version
+				fs.stat (f, function (err, stats) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						stats.flPrivate = true;
+						callback (undefined, stats);
+						}
+					});
+				}
+			else {
+				stats.flPrivate = false;
+				callback (undefined, stats);
+				}
+			});
+		}
 	function publishFile (screenname, relpath, type, flprivate, filetext, callback) {
 		if (config.flStorageEnabled) {
 			var f = getFilePath (screenname, relpath, flprivate);
@@ -496,6 +517,30 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 				});
 			});
 		}
+	function getFileInfo (screenname, relpath, callback) { //4/1/21 by DW
+		if (config.flStorageEnabled) {
+			findFile (screenname, relpath, function (err, stats) {
+				if (err) {
+					callback (err);
+					}
+				else {
+					function formatDate (d) {
+						return (new Date (d).toUTCString ());
+						}
+					callback (undefined, {
+						size: stats.size, //number of bytes in file
+						whenAccessed: formatDate (stats.atime), //when last red
+						whenCreated: formatDate (stats.birthtime),
+						whenModified: formatDate (stats.mtime),
+						flPrivate: stats.flPrivate
+						});
+					}
+				});
+			}
+		else {
+			callback ({message: "Can't read the file because the feature is not enabled on the server."});
+			}
+		}
 	function getUserData (screenname, callback) { //4/14/20 by DW
 		storageMustBeEnabled ("get user data", callback, function () {
 			const tmpfolder = "tmp/", archivefile = tmpfolder + screenname + ".zip"; 
@@ -625,6 +670,11 @@ function startup (options, callback) {
 						prefsPath: config.prefsPath,
 						docsPath: config.docsPath
 						};
+					if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
+						for (var x in theRequest.addToPagetable) {
+							pagetable [x] = theRequest.addToPagetable [x];
+							}
+						}
 					if (config.addMacroToPagetable !== undefined) {
 						config.addMacroToPagetable (pagetable);
 						}
@@ -755,6 +805,11 @@ function startup (options, callback) {
 									httpReturnZipFile (zipfile);
 									}
 								});
+							});
+						return (true); 
+					case "/getfileinfo": //4/1/21 by DW
+						callWithScreenname (function (screenname) {
+							getFileInfo (screenname, params.relpath, httpReturn);
 							});
 						return (true); 
 					}
