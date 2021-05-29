@@ -1,4 +1,4 @@
-var myVersion = "0.5.19", myProductName = "daveAppServer";  
+var myVersion = "0.5.24", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -145,6 +145,19 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 			}
 		});
 	}
+function cleanFileStats (stats) { //4/19/21 by DW
+	function formatDate (d) {
+		return (new Date (d).toUTCString ());
+		}
+	var cleanStats = {
+		size: stats.size, //number of bytes in file
+		whenAccessed: formatDate (stats.atime), //when last red
+		whenCreated: formatDate (stats.birthtime),
+		whenModified: formatDate (stats.mtime),
+		flPrivate: stats.flPrivate
+		}
+	return (cleanStats);
+	}
 
 //sockets
 	var theWsServer = undefined;
@@ -177,7 +190,6 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 						}
 					}
 				});
-			console.log ("\nnotifySocketSubscribers: " + ctUpdates + " of " + ctTotalSockets + " sockets were updated.\n");
 			}
 		}
 	function checkWebSocketCalls () { //expire timed-out calls
@@ -301,10 +313,6 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 						var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
 						if (!flprivate) {
 							notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
-								
-								return (true); //this needs to be debugged, so for now we update all listeners, it's wrong -- 3/6/21 by DW
-								
-								console.log ("publishFile: conn.appData.urlToWatch == " + conn.appData.urlToWatch + ", url == " + url); 
 								if (conn.appData.urlToWatch == url) {
 									return (true);
 									}
@@ -326,18 +334,32 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 			}
 		}
 	function getFile (screenname, relpath, flprivate, callback) {
+		function errcallback (err) {
+			if (err.code == "ENOENT") {
+				err.status = 500;
+				err.code = "NoSuchKey";
+				}
+			callback (err);
+			}
 		if (config.flStorageEnabled) {
 			var f = getFilePath (screenname, relpath, flprivate);
 			fs.readFile (f, function (err, filetext) {
 				if (err) {
-					if (err.code == "ENOENT") {
-						err.status = 500;
-						err.code = "NoSuchKey";
-						}
-					callback (err);
+					errcallback (err);
 					}
 				else {
-					callback (undefined, {filedata: filetext.toString ()});
+					fs.stat (f, function (err, stats) {
+						if (err) {
+							errcallback (err);
+							}
+						else {
+							var data = {
+								filedata: filetext.toString (),
+								filestats: cleanFileStats (stats)
+								};
+							callback (undefined, data);
+							}
+						});
 					}
 				});
 			}
@@ -473,6 +495,12 @@ function getDottedIdVerb (name, callback) { //2/27/21 by DW
 		else {
 			callback ({message: "Can't read the file because the feature is not enabled on the server."});
 			}
+		}
+	function fileExists (screenname, relpath, callback) { //5/29/21 by DW
+		readWholeFile (screenname, relpath, function (err, data) {
+			var flExists = err === undefined;
+			callback (undefined, {flExists});
+			});
 		}
 	function storageMustBeEnabled (namefunction, httpReturn, callback) {
 		if (config.flStorageEnabled) {
@@ -778,6 +806,11 @@ function startup (options, callback) {
 					case "/readwholefile": //2/24/21 by DW
 						callWithScreenname (function (screenname) {
 							readWholeFile (screenname, params.relpath, httpReturn);
+							});
+						return (true); 
+					case "/fileexists": //5/29/21 by DW
+						callWithScreenname (function (screenname) {
+							fileExists (screenname, params.relpath, httpReturn);
 							});
 						return (true); 
 					case "/httpreadurl": //2/26/21 by DW
