@@ -1,8 +1,9 @@
-var myVersion = "0.5.24", myProductName = "daveAppServer";  
+var myVersion = "0.5.25", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
 exports.saveStats = saveStats;
+exports.getStats = getStats; //6/28/21 by DW
 exports.getConfig = getConfig;
 
 const fs = require ("fs");
@@ -60,6 +61,9 @@ function saveStats (theStats) {
 		stats [x] = theStats [x];
 		}
 	statsChanged ();
+	}
+function getStats () { //6/28/21 by DW
+	return (stats);
 	}
 function getConfig () {
 	return (config);
@@ -220,6 +224,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function handleWebSocketConnection (conn) { 
 		var now = new Date ();
+		console.log ("handleWebSocketConnection: conn.socket.remoteAddress == " + conn.socket.remoteAddress); //6/7/21 by DW
 		conn.appData = { //initialize
 			whenStarted: now,
 			ctUpdates: 0,
@@ -242,6 +247,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		
 		conn.on ("text", function (s) {
 			var words = s.split (" ");
+			console.log ("handleWebSocketConnection: s == " + s); //6/7/21 by DW
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
 				conn.appData.lastVerb = words [0];
