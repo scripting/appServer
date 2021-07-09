@@ -20,39 +20,7 @@ Below is an example of config.json file that goes in the same directory as the a
 
 ### Example
 
-```json
-
-{
-
-"productName": "littleOutliner",
-
-"productNameForDisplay": "Little Outliner",
-
-"urlServerHomePageSource": "http://littleoutliner.com/testing/1.9.0/index.html",
-
-"prefsPath": "outlinerPrefs.json",
-
-"docsPath": "myOutlines/",
-
-
-
-"port": 1962,
-
-"flWebsocketEnabled": true,
-
-"websocketPort": 1963,
-
-"myDomain": "test.littleoutliner.com",
-
-
-
-"twitterConsumerKey": "7p1m9idcsyhkyoqmgsczibzbl",
-
-"twitterConsumerSecret": "clxqomjdm5983fv8dipzzhomshcosi2j3jp6hpkdpegnng3lc9"
-
-}
-
-```
+```json{	"productName": "littleOutliner",	"productNameForDisplay": "Little Outliner",	"urlServerHomePageSource": "http://littleoutliner.com/testing/1.9.0/index.html",	"prefsPath": "outlinerPrefs.json",	"docsPath": "myOutlines/",		"port": 1962,	"flWebsocketEnabled": true,	"websocketPort": 1963,	"myDomain": "test.littleoutliner.com",		"twitterConsumerKey": "1234567890123456789012345",	"twitterConsumerSecret": "12345678901234567890123456789012345678901234567890"	}```
 
 ### Explanation
 
