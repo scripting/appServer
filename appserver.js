@@ -1,4 +1,4 @@
-var myVersion = "0.5.26", myProductName = "daveAppServer";  
+var myVersion = "0.5.27", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -40,7 +40,9 @@ var config = {
 	
 	flStorageEnabled: true,
 	privateFilesPath: "privateFiles/users/",
-	publicFilesPath: "publicFiles/users/"
+	publicFilesPath: "publicFiles/users/",
+	
+	defaultContentType: "text/plain" //8/3/21 by DW
 	};
 const fnameConfig = "config.json";
 
@@ -468,6 +470,12 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			callback ({message: "Can't delete the file because the feature is not enabled on the server."});
 			}
 		}
+	function fileExists (screenname, relpath, callback) { //5/29/21 by DW
+		readWholeFile (screenname, relpath, function (err, data) {
+			var flExists = err === undefined;
+			callback (undefined, {flExists});
+			});
+		}
 	function readWholeFile (screenname, relpath, callback) { //2/24/21 by DW
 		if (config.flStorageEnabled) {
 			function readone (flprivate, callback) {
@@ -501,12 +509,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		else {
 			callback ({message: "Can't read the file because the feature is not enabled on the server."});
 			}
-		}
-	function fileExists (screenname, relpath, callback) { //5/29/21 by DW
-		readWholeFile (screenname, relpath, function (err, data) {
-			var flExists = err === undefined;
-			callback (undefined, {flExists});
-			});
 		}
 	function storageMustBeEnabled (namefunction, httpReturn, callback) {
 		if (config.flStorageEnabled) {
@@ -874,7 +876,14 @@ function startup (options, callback) {
 						return404 ();
 						}
 					else {
-						returnPlainText (data.filedata);
+						const ext = utils.stringLastField (relpath, "."); //8/3/21 by DW
+						if (ext == relpath) { //no extension
+							type = config.defaultContentType;
+							}
+						else {
+							type = utils.httpExt2MIME (ext, config.defaultContentType);
+							}
+						theRequest.httpReturn (200, type, data.filedata);
 						}
 					});
 				}
