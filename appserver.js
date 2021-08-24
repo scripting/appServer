@@ -1,4 +1,4 @@
-var myVersion = "0.5.27", myProductName = "daveAppServer";  
+var myVersion = "0.5.28", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -553,6 +553,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				});
 			});
 		}
+	function getPublicUrl (screenname, relpath) { //8/24/21 by DW
+		return (config.urlServerForClient + screenname + "/" + relpath);
+		}
 	function getFileInfo (screenname, relpath, callback) { //4/1/21 by DW
 		if (config.flStorageEnabled) {
 			findFile (screenname, relpath, function (err, stats) {
@@ -568,7 +571,8 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						whenAccessed: formatDate (stats.atime), //when last red
 						whenCreated: formatDate (stats.birthtime),
 						whenModified: formatDate (stats.mtime),
-						flPrivate: stats.flPrivate
+						flPrivate: stats.flPrivate,
+						urlPublic: (stats.flPrivate) ? undefined : getPublicUrl (screenname, relpath) //8/24/21 by DW
 						});
 					}
 				});
