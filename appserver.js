@@ -1,4 +1,4 @@
-var myVersion = "0.5.28", myProductName = "daveAppServer";  
+var myVersion = "0.5.30", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -54,6 +54,8 @@ var stats = {
 	whenLastHit: new Date (0)
 	};
 const fnameStats = "stats.json";
+
+
 
 function statsChanged () {
 	flStatsChanged = true;
@@ -871,11 +873,24 @@ function startup (options, callback) {
 				function returnPlainText (s) {
 					theRequest.httpReturn (200, "text/plain", s.toString ());
 					}
+				
+				function getFileContent (screenname, relpath, flprivate, callback) { //9/8/21 by DW
+					var f = getFilePath (screenname, relpath, flprivate);
+					fs.readFile (f, function (err, filetext) {
+						if (err) {
+							callback (err);
+							}
+						else {
+							callback (undefined, filetext);
+							}
+						});
+					}
+				
 				var path = utils.stringDelete (theRequest.path, 1, 1); //delete leading slash
 				var screenname = utils.stringNthField (path, "/", 1);
 				var relpath = utils.stringDelete (path, 1, screenname.length + 1);
 				var flprivate = false;
-				getFile (screenname, relpath, flprivate, function (err, data) {
+				getFileContent (screenname, relpath, flprivate, function (err, filedata) {
 					if (err) {
 						return404 ();
 						}
@@ -887,7 +902,7 @@ function startup (options, callback) {
 						else {
 							type = utils.httpExt2MIME (ext, config.defaultContentType);
 							}
-						theRequest.httpReturn (200, type, data.filedata);
+						theRequest.httpReturn (200, type, filedata);
 						}
 					});
 				}
