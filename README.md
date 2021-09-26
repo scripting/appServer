@@ -52,11 +52,11 @@ The second section configures the HTTP server and the connection to Twitter for 
 
 ### Updates
 
-v0.5.32 -- 9/26/21 by DW
+#### v0.5.32 -- 9/26/21 by DW
 
 Fixed the example app to require "../appserver.js" instead of "lib/daveappserver.js" which only exists on my development machine. 
 
-v0.5.31 -- 9/15/21 by DW
+#### v0.5.31 -- 9/15/21 by DW
 
 writeWholeFile was meant to be sure the path to the file exists before writing the file. It wasn't doing it, now it does. 
 
