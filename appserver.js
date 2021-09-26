@@ -1,4 +1,4 @@
-var myVersion = "0.5.30", myProductName = "daveAppServer";  
+var myVersion = "0.5.32", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -536,13 +536,15 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			function writethefile (flprivate) {
 				var f = getFilePath (screenname, relpath, flprivate);
-				fs.writeFile (f, filetext, function (err) {
-					if (err) {
-						callback (err);
-						}
-					else {
-						callback (undefined);
-						}
+				utils.sureFilePath (f, function () { //9/15/21 by DW
+					fs.writeFile (f, filetext, function (err) {
+						if (err) {
+							callback (err);
+							}
+						else {
+							callback (undefined);
+							}
+						});
 					});
 				}
 			readone (false, function (err, data) {
