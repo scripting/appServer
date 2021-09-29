@@ -1,4 +1,4 @@
-var myVersion = "0.5.32", myProductName = "daveAppServer";  
+var myVersion = "0.5.33", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -228,7 +228,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function handleWebSocketConnection (conn) { 
 		var now = new Date ();
-		console.log ("handleWebSocketConnection: conn.socket.remoteAddress == " + conn.socket.remoteAddress); //6/7/21 by DW
 		conn.appData = { //initialize
 			whenStarted: now,
 			ctUpdates: 0,
@@ -251,7 +250,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		
 		conn.on ("text", function (s) {
 			var words = s.split (" ");
-			console.log ("handleWebSocketConnection: s == " + s); //6/7/21 by DW
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
 				conn.appData.lastVerb = words [0];
@@ -260,6 +258,18 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						conn.appData.urlToWatch = utils.trimWhitespace (words [1]);
 						logToConsole (conn, conn.appData.lastVerb, conn.appData.urlToWatch);
 						break;
+					
+					case "user": //9/29/21 by DW
+						var token = words [1], secret = words [2];
+						conn.appData.twOauthToken = token;
+						conn.appData.twOauthTokenSecret = secret;
+						conn.appData.urlToWatch = "";
+						davetwitter.getScreenName (token, secret, function (screenname) {
+							conn.appData.screenname = screenname;
+							logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
+							});
+						break;
+					
 					}
 				}
 			else {
