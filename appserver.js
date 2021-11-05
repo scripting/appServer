@@ -1,4 +1,4 @@
-var myVersion = "0.5.33", myProductName = "daveAppServer";  
+var myVersion = "0.5.34", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -74,6 +74,25 @@ function getConfig () {
 	}
 function httpReadUrl (url, callback) {
 	request (url, function (err, response, data) {
+		if (err) {
+			callback (err);
+			}
+		else {
+			if (response.statusCode != 200) {
+				const errstruct = {
+					message: "Can't read the URL, \"" + url + "\" because we received a status code of " + response.statusCode + ".",
+					statusCode: response.statusCode
+					};
+				callback (errstruct);
+				}
+			else {
+				callback (undefined, data);
+				}
+			}
+		});
+	}
+function httpFullRequest (theRequest, callback) { //11/5/21 by DW
+	request (theRequest, function (err, response, data) {
 		if (err) {
 			callback (err);
 			}
@@ -842,6 +861,11 @@ function startup (options, callback) {
 					case "/httpreadurl": //2/26/21 by DW
 						callWithScreenname (function (screenname) {
 							httpReadUrl (params.url, httpReturn);
+							});
+						return (true); 
+					case "/httprequest": //11/5/21 by DW
+						callWithScreenname (function (screenname) {
+							httpFullRequest (params.request, httpReturn);
 							});
 						return (true); 
 					case "/getdomainname": //2/27/21 by DW
