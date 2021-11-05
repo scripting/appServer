@@ -1,4 +1,4 @@
-var myVersion = "0.5.34", myProductName = "daveAppServer";  
+var myVersion = "0.5.36", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -91,7 +91,15 @@ function httpReadUrl (url, callback) {
 			}
 		});
 	}
-function httpFullRequest (theRequest, callback) { //11/5/21 by DW
+function httpFullRequest (jsontext, callback) { //11/5/21 by DW
+	var theRequest;
+	try {
+		theRequest = JSON.parse (jsontext);
+		}
+	catch (err) {
+		callback (err);
+		return;
+		}
 	request (theRequest, function (err, response, data) {
 		if (err) {
 			callback (err);
@@ -99,7 +107,7 @@ function httpFullRequest (theRequest, callback) { //11/5/21 by DW
 		else {
 			if (response.statusCode != 200) {
 				const errstruct = {
-					message: "Can't read the URL, \"" + url + "\" because we received a status code of " + response.statusCode + ".",
+					message: "Can't read the URL, \"" + theRequest.url + "\" because we received a status code of " + response.statusCode + ".",
 					statusCode: response.statusCode
 					};
 				callback (errstruct);
