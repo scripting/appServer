@@ -1,4 +1,4 @@
-var myVersion = "0.5.37", myProductName = "daveAppServer";  
+var myVersion = "0.5.38", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -17,6 +17,7 @@ const davetwitter = require ("davetwitter");
 const filesystem = require ("davefilesystem"); 
 const folderToJson = require ("foldertojson");
 const zip = require ("davezip");
+const qs = require ("querystring");
 
 const whenStart = new Date ();
 
@@ -42,7 +43,9 @@ var config = {
 	privateFilesPath: "privateFiles/users/",
 	publicFilesPath: "publicFiles/users/",
 	
-	defaultContentType: "text/plain" //8/3/21 by DW
+	defaultContentType: "text/plain", //8/3/21 by DW
+	
+	userAgent: myProductName + " v" + myVersion //11/8/21 by DW
 	};
 const fnameConfig = "config.json";
 
@@ -643,6 +646,216 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				});
 			});
 		}
+//github -- 11/8/21 by DW
+	function handleGithubOauthCallback (theCode, callback) { //11/8/21 by DW
+		var params = {
+			client_id: config.githubClientId,
+			client_secret: config.githubClientSecret,
+			code: theCode
+			};
+		var apiUrl = "https://github.com/login/oauth/access_token?" + utils.buildParamList (params);
+		var githubRequest = {
+			method: "POST",
+			url: apiUrl
+			};
+		console.log ("handleGithubOauthCallback: githubRequest === " + utils.jsonStringify (githubRequest));
+		request (githubRequest, function (err, response, body) {
+			if (err) {
+				console.log ("handleGithubOauthCallback: err.message == " + err.message);
+				callback (err);
+				}
+			else {
+				var postbody = qs.parse (body);
+				var urlRedirect = "/?githubaccesstoken=" + postbody.access_token;
+				console.log ("handleGithubOauthCallback: urlRedirect = " + urlRedirect);
+				callback (undefined, urlRedirect);
+				}
+			});
+		}
+	function downloadFromGithub (username, repository, path, accessToken, callback) { //calls back with the JSON structure GitHub returns
+		if (!utils.beginsWith (path, "/")) {
+			path = "/" + path;
+			}
+		var url = "https://api.github.com/repos/" + username + "/" + repository + "/contents" + path;
+		var theRequest = {
+			url: url,
+			jar: true, //"remember cookies for future use"
+			maxRedirects: 5,
+			headers: {
+				"User-Agent": config.userAgent,
+				"Authorization": "token " + accessToken
+				}
+			};
+		request (theRequest, function (err, response, jsontext) {
+			if (err) {
+				callback (err);
+				}
+			else {
+				if (response.statusCode == 404) {
+					callback ({message: "The file \"" + path + "\" was not found."});
+					}
+				else {
+					if (response.headers ["x-ratelimit-remaining"] == 0) {
+						var theLimit = response.headers ["x-ratelimit-limit"];
+						callback ({"message": "GitHub reported a rate limit error. You are limited to " + theLimit + " calls per hour."});
+						}
+					else {
+						try {
+							var jstruct = JSON.parse (jsontext);
+							callback (undefined, jstruct);
+							}
+						catch (err) {
+							callback (err);
+							}
+						}
+					}
+				}
+			});
+		}
+	function uploadToGithub (jsontext, data, callback) {
+		var options;
+		try {
+			options = JSON.parse (jsontext);
+			}
+		catch (err) {
+			callback (err);
+			return;
+			}
+		options.data = data;
+		if (options.userAgent === undefined) {
+			options.userAgent = config.userAgent;
+			}
+		if (options.type === undefined) {
+			options.type = utils.httpExt2MIME (options.path);
+			}
+		if (options.message === undefined) {
+			options.message = utils.getRandomSnarkySlogan ();
+			}
+		
+		var bodyStruct = { 
+			message: options.message,
+			committer: options.committer,
+			content: Buffer.from (options.data).toString ("base64")
+			};
+		downloadFromGithub (options.username, options.repository, options.path, options.accessToken, function (err, jstruct) {
+			if (jstruct !== undefined) {
+				bodyStruct.sha = jstruct.sha;
+				}
+			var url = "https://api.github.com/repos/" + options.username + "/" + options.repository + "/contents/" + options.path;
+			var theRequest = {
+				method: "PUT",
+				url,
+				body: JSON.stringify (bodyStruct),
+				headers: {
+					"User-Agent": options.userAgent,
+					"Authorization": "token " + options.accessToken,
+					"Content-Type": options.type
+					}
+				};
+			request (theRequest, function (err, response, body) { 
+				if (err) {
+					callback (err);
+					}
+				else {
+					var rateLimitMessage;
+					if (response.headers ["x-ratelimit-remaining"] == 0) {
+						var theLimit = response.headers ["x-ratelimit-limit"];
+						rateLimitMessage = "GitHub reported a rate limit error. You are limited to " + theLimit + " calls per hour.";
+						}
+					var returnedStruct = JSON.parse (body);
+					returnedStruct.statusCode = response.statusCode;
+					returnedStruct.rateLimitMessage = rateLimitMessage;
+					callback (undefined, returnedStruct);
+					}
+				});
+			});
+		}
+	function getGithubDirectory (username, repository, path, accessToken, callback) {
+		function loadDirectory (theArray, parentpath, callback) {
+			function nextFile (ix) {
+				if (ix < theArray.length) {
+					var item = theArray [ix];
+					if (item.type == "dir") {
+						getGithubDirectory (username, repository, item.path, accessToken, function (err, jstruct) {
+							if (jstruct !== undefined) { //no error
+								item.subs = jstruct;
+								}
+							nextFile (ix + 1);
+							});
+						}
+					else {
+						nextFile (ix + 1);
+						}
+					}
+				else {
+					callback ();
+					}
+				}
+			nextFile (0);
+			}
+		if (utils.beginsWith (path, "/")) {
+			path = utils.stringDelete (path, 1, 1);
+			}
+		var theRequest = {
+			method: "GET",
+			url: "https://api.github.com/repos/" + username + "/" + repository + "/contents/" + path,
+			headers: {
+				"User-Agent": config.userAgent,
+				"Authorization": "token " + accessToken,
+				}
+			};
+		request (theRequest, function (err, response, body) { 
+			if (err) {
+				callback (err);
+				}
+			else {
+				try {
+					var jstruct = JSON.parse (body);
+					if (Array.isArray (jstruct)) { //it's a directory
+						loadDirectory (jstruct, path, function () {
+							callback (undefined, jstruct);
+							});
+						}
+					else {
+						callback (undefined, jstruct);
+						}
+					}
+				catch (err) {
+					if (callback !== undefined) {
+						callback (err);
+						}
+					}
+				}
+			});
+		}
+	function getGithubUserInfo (username, accessToken, callback) {
+		var url = "https://api.github.com/user";
+		if (username !== undefined) {
+			url += "s/" + username
+			}
+		var theRequest = {
+			method: "GET",
+			url,
+			headers: {
+				"User-Agent": config.userAgent,
+				"Authorization": "token " + accessToken
+				}
+			};
+		request (theRequest, function (err, response, body) { 
+			if (err) {
+				callback (err);
+				}
+			else {
+				try {
+					var jstruct = JSON.parse (body);
+					callback (undefined, jstruct);
+					}
+				catch (err) {
+					callback (err);
+					}
+				}
+			});
+		}
 
 function startup (options, callback) {
 	function readConfig (f, theConfig, flReportError, callback) { 
@@ -724,6 +937,16 @@ function startup (options, callback) {
 				returnData (jstruct);
 				}
 			}
+		function httpReturnRedirect (url, code) { //9/30/20 by DW
+			var headers = {
+				location: url
+				};
+			if (code === undefined) {
+				code = 302;
+				}
+			theRequest.httpReturn (code, "text/plain", code + " REDIRECT", headers);
+			}
+			
 		function httpReturnObject (err, jstruct) {
 			if (err) {
 				returnError (err);
@@ -753,7 +976,8 @@ function startup (options, callback) {
 						urlWebsocketServerForClient: config.urlWebsocketServerForClient,
 						flEnableLogin: config.flEnableLogin,
 						prefsPath: config.prefsPath,
-						docsPath: config.docsPath
+						docsPath: config.docsPath,
+						idGitHubClient: config.githubClientId //11/9/21 by DW
 						};
 					if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
 						for (var x in theRequest.addToPagetable) {
@@ -804,6 +1028,9 @@ function startup (options, callback) {
 							writeWholeFile (screenname, params.relpath, theRequest.postBody.toString (), httpReturn);
 							});
 						return (true);
+					case "/uploadtogithub":  //11/9/21 by DW
+						uploadToGithub (params.options, theRequest.postBody, httpReturn);
+						return (true); 
 					}
 				break;
 			case "get":
@@ -907,6 +1134,28 @@ function startup (options, callback) {
 							getFileInfo (screenname, params.relpath, httpReturn);
 							});
 						return (true); 
+					case "/githuboauthcallback": //11/8/21 by DW
+						handleGithubOauthCallback (params.code, function (err, urlRedirect) {
+							if (err) {
+								returnError (err);
+								}
+							else {
+								httpReturnRedirect (urlRedirect);
+								}
+							});
+						return (true); 
+					case "/downloadfromgithub":  //11/8/21 by DW
+						downloadFromGithub (params.username, params.repository, params.path, params.accessToken, httpReturn);
+						return (true); 
+					case "/githubgetdirectory":  //11/10/21 by DW
+						getGithubDirectory (params.username, params.repository, params.path, params.accessToken, httpReturn);
+						return (true); 
+					case "/githubgetuserinfo":  //11/10/21 by DW
+						callWithScreenname (function (screenname) {
+							getGithubUserInfo (params.username, params.accessToken, httpReturn);
+							});
+						return (true); 
+					
 					}
 				break;
 			}

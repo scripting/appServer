@@ -1,7 +1,7 @@
 {
 	"name": "daveappserver",
 	"description": "Factored code that was appearing in all my servers.",
-	"version": "0.5.37",
+	"version": "0.5.38",
 	"main": "appserver.js",
 	"repository": {
 		"type" : "git",
@@ -12,6 +12,7 @@
 		"appserver.js"
 		],
 	"dependencies" : {
+		"querystring": "*",
 		"request": "*",
 		"nodejs-websocket": "*",
 		"daveutils": "*",
