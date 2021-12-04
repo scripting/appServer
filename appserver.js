@@ -1,4 +1,4 @@
-var myVersion = "0.5.38", myProductName = "daveAppServer";  
+var myVersion = "0.5.39", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -57,7 +57,6 @@ var stats = {
 	whenLastHit: new Date (0)
 	};
 const fnameStats = "stats.json";
-
 
 
 function statsChanged () {
@@ -441,6 +440,12 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			});
 		}
+	
+	function getPublicFileUrl (screenname, relpath) { //12/4/21 by DW
+		var urlpublic = config.urlServerForClient + screenname + "/" + relpath;
+		return (urlpublic);
+		}
+	
 	function makeFilePublic (screenname, relpath, callback) { //2/20/21 by DW
 		console.log ("makeFilePublic: relpath == " + relpath);
 		getFile (screenname, relpath, false, function (err, data) {
@@ -477,7 +482,21 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			else {
 				folderToJson.getObject (config.publicFilesPath + screenname + "/", function (err, publicSubs) {
-					if (err) {
+					function legitError (err) {
+						if (err) {
+							if (err.code == "ENOENT") {
+								publicSubs = new Object ();
+								return (false);
+								}
+							else {
+								return (true);
+								}
+							}
+						else {
+							return (false);
+							}
+						}
+					if (legitError (err)) {
 						callback (err);
 						}
 					else {
@@ -1018,6 +1037,11 @@ function startup (options, callback) {
 									returnError (err);
 									}
 								else { //quirk in API, it wants a string, not a JSON struct
+									if (!flprivate) {
+										if (config.publicFileSaved !== undefined) {
+											config.publicFileSaved (token, secret, getPublicFileUrl (screenname, params.relpath));
+											}
+										}
 									returnPlainText (utils.jsonStringify (data));
 									}
 								});

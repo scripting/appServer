@@ -52,6 +52,12 @@ The second section configures the HTTP server and the connection to Twitter for 
 
 ### Updates
 
+#### v0.5.32 -- 12/4/21 by DW
+
+Added a new callback, publicFileSaved, which is called when the user updates a public file. 
+
+Fixed a bug where a user couldn't create a new file if their public files folder was empty. 
+
 #### v0.5.32 -- 9/26/21 by DW
 
 Fixed the example app to require "../appserver.js" instead of "lib/daveappserver.js" which only exists on my development machine. 
