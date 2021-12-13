@@ -1,10 +1,11 @@
-var myVersion = "0.5.39", myProductName = "daveAppServer";  
+var myVersion = "0.5.40", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
 exports.saveStats = saveStats;
 exports.getStats = getStats; //6/28/21 by DW
 exports.getConfig = getConfig;
+exports.publishFile = publishFile; //12/13/21 by DW
 
 const fs = require ("fs");
 var dns = require ("dns");
