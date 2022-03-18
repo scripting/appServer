@@ -52,6 +52,12 @@ The second section configures the HTTP server and the connection to Twitter for 
 
 ### Updates
 
+#### v0.5.44 -- 3/18/22 by DW
+
+New callback, config.publishFile. If defined we call back with the file, screenname, relpath, flprivate, filetext and the url of the file if it's public.
+
+It's called when we handle a /publishfile or /writewholefile message.
+
 #### v0.5.32 -- 12/4/21 by DW
 
 Added a new callback, publicFileSaved, which is called when the user updates a public file. 

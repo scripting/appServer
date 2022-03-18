@@ -1,4 +1,4 @@
-var myVersion = "0.5.40", myProductName = "daveAppServer";  
+var myVersion = "0.5.44", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -282,6 +282,18 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				});
 			}
 		
+		function kissOtherLogonsGoodnight (screenname, theNewConnection) { //12/14/21 by DW
+			theWsServer.connections.forEach (function (conn, ix) {
+				if (conn.appData !== undefined) { //it's one of ours
+					if (conn != theNewConnection) { //it's not the new one
+						if (conn.appData.screenname == screenname) {
+							conn.sendText ("goodnight");
+							}
+						}
+					}
+				});
+			}
+		
 		conn.on ("text", function (s) {
 			var words = s.split (" ");
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
@@ -300,6 +312,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						conn.appData.urlToWatch = "";
 						davetwitter.getScreenName (token, secret, function (screenname) {
 							conn.appData.screenname = screenname;
+							kissOtherLogonsGoodnight (screenname, conn); //12/14/21 by DW
 							logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
 							});
 						break;
@@ -365,6 +378,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						}
 					else {
 						var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+						if (config.publishFile !== undefined) { //3/18/22 by DW
+							config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
+							}
 						if (!flprivate) {
 							notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
 								if (conn.appData.urlToWatch == url) {
@@ -606,6 +622,10 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							callback (err);
 							}
 						else {
+							if (config.publishFile !== undefined) { //3/18/22 by DW
+								var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+								config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
+								}
 							callback (undefined);
 							}
 						});
@@ -986,31 +1006,46 @@ function startup (options, callback) {
 				});
 			}
 		function returnServerHomePage () {
-			request (config.urlServerHomePageSource, function (error, response, templatetext) {
-				if (!error && response.statusCode == 200) {
-					var pagetable = {
-						productName: config.productName, 
-						productNameForDisplay: config.productNameForDisplay, 
-						version: config.version,
-						urlServerForClient: config.urlServerForClient,
-						urlWebsocketServerForClient: config.urlWebsocketServerForClient,
-						flEnableLogin: config.flEnableLogin,
-						prefsPath: config.prefsPath,
-						docsPath: config.docsPath,
-						idGitHubClient: config.githubClientId //11/9/21 by DW
-						};
-					if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
-						for (var x in theRequest.addToPagetable) {
-							pagetable [x] = theRequest.addToPagetable [x];
-							}
+			function servePage (templatetext) {
+				var pagetable = {
+					productName: config.productName, 
+					productNameForDisplay: config.productNameForDisplay, 
+					version: config.version,
+					urlServerForClient: config.urlServerForClient,
+					urlWebsocketServerForClient: config.urlWebsocketServerForClient,
+					flEnableLogin: config.flEnableLogin,
+					prefsPath: config.prefsPath,
+					docsPath: config.docsPath,
+					idGitHubClient: config.githubClientId //11/9/21 by DW
+					};
+				if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
+					for (var x in theRequest.addToPagetable) {
+						pagetable [x] = theRequest.addToPagetable [x];
 						}
-					if (config.addMacroToPagetable !== undefined) {
-						config.addMacroToPagetable (pagetable);
-						}
-					var pagetext = utils.multipleReplaceAll (templatetext, pagetable, false, "[%", "%]");
-					returnHtml (pagetext);
 					}
-				});
+				if (config.addMacroToPagetable !== undefined) {
+					config.addMacroToPagetable (pagetable);
+					}
+				var pagetext = utils.multipleReplaceAll (templatetext.toString (), pagetable, false, "[%", "%]");
+				returnHtml (pagetext);
+				}
+			if (config.pathServerHomePageSource !== undefined) {
+				fs.readFile (config.pathServerHomePageSource, function (err, templatetext) {
+					if (err) {
+						console.log ("returnServerHomePage: err.message == " + err.message + ", f == " + config.pathServerHomePageSource);
+						}
+					else {
+						servePage (templatetext);
+						}
+					});
+				}
+			else {
+				request (config.urlServerHomePageSource, function (err, response, templatetext) {
+					if (!err && response.statusCode == 200) {
+						servePage (templatetext);
+						}
+					});
+				}
 			}
 		function callWithScreenname (callback) {
 			davetwitter.getScreenName (token, secret, function (screenname) {
