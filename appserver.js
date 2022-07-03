@@ -1,4 +1,4 @@
-var myVersion = "0.5.47", myProductName = "daveAppServer";  
+var myVersion = "0.5.49", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -6,6 +6,8 @@ exports.saveStats = saveStats;
 exports.getStats = getStats; //6/28/21 by DW
 exports.getConfig = getConfig;
 exports.publishFile = publishFile; //12/13/21 by DW
+exports.readWholeFile = readWholeFile; //5/28/22 by DW
+exports.writeWholeFile = writeWholeFile; //5/28/22 by DW
 
 const fs = require ("fs");
 var dns = require ("dns");
@@ -623,7 +625,8 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							}
 						else {
 							if (config.publishFile !== undefined) { //3/18/22 by DW
-								var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+								const url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+								const type = utils.httpExt2MIME (utils.stringLastField (f, ".")); //7/3/22 by DW
 								config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
 								}
 							callback (undefined);

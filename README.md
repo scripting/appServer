@@ -52,6 +52,10 @@ The second section configures the HTTP server and the connection to Twitter for 
 
 ### Updates
 
+#### v0.5.48 -- 3/18/22 by DW
+
+Exports three routines: fileExists, readWholeFile, writeWholeFile.
+
 #### v0.5.44 -- 3/18/22 by DW
 
 New callback, config.publishFile. If defined we call back with the file, screenname, relpath, flprivate, filetext and the url of the file if it's public.
