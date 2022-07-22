@@ -1,4 +1,4 @@
-var myVersion = "0.5.49", myProductName = "daveAppServer";  
+var myVersion = "0.5.52", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -48,7 +48,9 @@ var config = {
 	
 	defaultContentType: "text/plain", //8/3/21 by DW
 	
-	userAgent: myProductName + " v" + myVersion //11/8/21 by DW
+	userAgent: myProductName + " v" + myVersion, //11/8/21 by DW
+	
+	whitelist: undefined //7/21/22 by DW
 	};
 const fnameConfig = "config.json";
 
@@ -1010,6 +1012,16 @@ function startup (options, callback) {
 			}
 		function returnServerHomePage () {
 			function servePage (templatetext) {
+				
+				function arrayToParam (theArray) { //7/21/22 by DW
+					if (theArray === undefined) {
+						return (undefined);
+						}
+					else {
+						return (JSON.stringify (theArray));
+						}
+					}
+				
 				var pagetable = {
 					productName: config.productName, 
 					productNameForDisplay: config.productNameForDisplay, 
@@ -1216,6 +1228,19 @@ function startup (options, callback) {
 					case "/githubgetuserinfo":  //11/10/21 by DW
 						callWithScreenname (function (screenname) {
 							getGithubUserInfo (params.username, params.accessToken, httpReturn);
+							});
+						return (true); 
+					case "/useriswhitelisted": //7/21/22 by DW
+						callWithScreenname (function (screenname) {
+							var flWhitelisted = false;
+							if (config.whitelist === undefined) {
+								flWhitelisted = true;
+								}
+							else {
+								flWhitelisted = config.whitelist.includes (screenname);
+								}
+							console.log ("/useriswhitelisted: screenname == " + screenname + ", flWhitelisted == " + flWhitelisted);
+							returnData ({flWhitelisted});
 							});
 						return (true); 
 					
