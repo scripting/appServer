@@ -1,4 +1,4 @@
-var myVersion = "0.5.52", myProductName = "daveAppServer";  
+var myVersion = "0.5.55", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -939,6 +939,7 @@ function startup (options, callback) {
 		config.twitter.http404Callback = http404Callback; //1/24/21 by DW
 		config.twitter.twitterConsumerKey = config.twitterConsumerKey;
 		config.twitter.twitterConsumerSecret = config.twitterConsumerSecret;
+		config.twitter.userLogonCallback = userLogonCallback; //8/14/22 by DW
 		davetwitter.start (config.twitter);
 		}
 	function handleHttpRequest (theRequest) {
@@ -1039,10 +1040,21 @@ function startup (options, callback) {
 						}
 					}
 				if (config.addMacroToPagetable !== undefined) {
-					config.addMacroToPagetable (pagetable);
+					config.addMacroToPagetable (pagetable, theRequest); //8/10/22 by DW
 					}
-				var pagetext = utils.multipleReplaceAll (templatetext.toString (), pagetable, false, "[%", "%]");
-				returnHtml (pagetext);
+				
+				function replaceAllAndReturnHtml () {
+					var pagetext = utils.multipleReplaceAll (templatetext.toString (), pagetable, false, "[%", "%]");
+					returnHtml (pagetext);
+					}
+				if (config.asyncAddMacroToPagetable !== undefined) { //8/10/22 by DW
+					config.asyncAddMacroToPagetable (pagetable, theRequest, function () {
+						replaceAllAndReturnHtml ();
+						});
+					}
+				else {
+					replaceAllAndReturnHtml ();
+					}
 				}
 			if (config.pathServerHomePageSource !== undefined) {
 				fs.readFile (config.pathServerHomePageSource, function (err, templatetext) {
@@ -1298,6 +1310,11 @@ function startup (options, callback) {
 			}
 		else {
 			return (false); //tell davetwitter we didn't handle it
+			}
+		}
+	function userLogonCallback (options) { //8/14/22 by DW
+		if (config.userLogonCallback !== undefined) {
+			config.userLogonCallback (options);
 			}
 		}
 	function everyMinute () {
