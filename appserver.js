@@ -1,4 +1,4 @@
-var myVersion = "0.5.55", myProductName = "daveAppServer";  
+var myVersion = "0.5.56", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -8,6 +8,7 @@ exports.getConfig = getConfig;
 exports.publishFile = publishFile; //12/13/21 by DW
 exports.readWholeFile = readWholeFile; //5/28/22 by DW
 exports.writeWholeFile = writeWholeFile; //5/28/22 by DW
+exports.getFilePath = getFilePath; //9/13/22 by DW
 
 const fs = require ("fs");
 var dns = require ("dns");
@@ -62,7 +63,6 @@ var stats = {
 	whenLastHit: new Date (0)
 	};
 const fnameStats = "stats.json";
-
 
 function statsChanged () {
 	flStatsChanged = true;

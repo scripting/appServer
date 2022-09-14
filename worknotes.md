@@ -1,3 +1,7 @@
+#### 8/14/22 by DW -- 0.5.56
+
+Exporting getFilePath so FeedLand server can find the user's prefs.json file. 
+
 #### 8/14/22 by DW -- 0.5.55
 
 New userLogonCallback callback. Called when the user has successfully logged in via davetwitter. We send back the information about the login, the user's screenname, userid, token and secret. 
