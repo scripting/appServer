@@ -1,3 +1,7 @@
+#### 9/16/22 by DW -- 0.5.57
+
+Changed /useriswhitelisted call so that it reads config.json itself, so the system doesn't have to be rebooted to make a change to the whitelist.
+
 #### 8/14/22 by DW -- 0.5.56
 
 Exporting getFilePath so FeedLand server can find the user's prefs.json file. 

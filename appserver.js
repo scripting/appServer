@@ -1,4 +1,4 @@
-var myVersion = "0.5.56", myProductName = "daveAppServer";  
+var myVersion = "0.5.57", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -64,6 +64,29 @@ var stats = {
 	};
 const fnameStats = "stats.json";
 
+
+
+function userIsWhitelisted (screenname, callback) { //9/16/22 by DW
+	fs.readFile (fnameConfig, function (err, jsontext) {
+		var flWhitelisted = false; 
+		if (!err) {
+			var jstruct;
+			try {
+				jstruct = JSON.parse (jsontext);
+				if (jstruct.whitelist === undefined) { //no whitelist
+					flWhitelisted = true;
+					}
+				else {
+					flWhitelisted = jstruct.whitelist.includes (screenname);
+					}
+				}
+			catch (err) {
+				}
+			}
+		console.log ("userIsWhitelisted: screenname == " + screenname + ", flWhitelisted == " + flWhitelisted);
+		callback (undefined, {flWhitelisted});
+		});
+	}
 function statsChanged () {
 	flStatsChanged = true;
 	}
@@ -1244,15 +1267,7 @@ function startup (options, callback) {
 						return (true); 
 					case "/useriswhitelisted": //7/21/22 by DW
 						callWithScreenname (function (screenname) {
-							var flWhitelisted = false;
-							if (config.whitelist === undefined) {
-								flWhitelisted = true;
-								}
-							else {
-								flWhitelisted = config.whitelist.includes (screenname);
-								}
-							console.log ("/useriswhitelisted: screenname == " + screenname + ", flWhitelisted == " + flWhitelisted);
-							returnData ({flWhitelisted});
+							userIsWhitelisted (screenname, httpReturn); //9/16/22 by DW
 							});
 						return (true); 
 					
