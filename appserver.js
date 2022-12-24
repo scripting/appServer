@@ -1,4 +1,4 @@
-var myVersion = "0.5.57", myProductName = "daveAppServer";  
+var myVersion = "0.6.0", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -22,6 +22,7 @@ const filesystem = require ("davefilesystem");
 const folderToJson = require ("foldertojson");
 const zip = require ("davezip");
 const qs = require ("querystring");
+const mail = require ("davemail");
 
 const whenStart = new Date ();
 
@@ -51,7 +52,14 @@ var config = {
 	
 	userAgent: myProductName + " v" + myVersion, //11/8/21 by DW
 	
-	whitelist: undefined //7/21/22 by DW
+	whitelist: undefined, //7/21/22 by DW
+	
+	confirmEmailSubject: "FeedLand confirmation", //12/7/22 by DW
+	fnameEmailTemplate: "emailtemplate.html",
+	operationToConfirm: "add your email address to your FeedLand user profile",
+	mailSender: "dave@scripting.com",
+	dataFolder: "data/",
+	confirmationExpiresAfter: 60 * 60 //emails expire after an hour
 	};
 const fnameConfig = "config.json";
 
@@ -60,7 +68,8 @@ var stats = {
 	whenLastStart: undefined,
 	ctWrites: 0,
 	ctHits: 0, ctHitsToday: 0, ctHitsThisRun:0, 
-	whenLastHit: new Date (0)
+	whenLastHit: new Date (0),
+	pendingConfirmations: new Array () //12/7/22 by DW
 	};
 const fnameStats = "stats.json";
 
@@ -924,6 +933,89 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			});
 		}
+//email registration -- 12/7/22 by DW
+	function sendConfirmingEmail (email, screenname, callback) {
+		const magicString = utils.getRandomPassword (10);
+		const urlWebApp = "http://" + config.myDomain + "/";
+		console.log ("sendConfirmingEmail: email == " + email + ", urlWebApp == " + urlWebApp);
+		var obj = {
+			magicString: magicString,
+			email: email,
+			flDeleted: false,
+			screenname,
+			when: new Date ()
+			};
+		stats.pendingConfirmations.push (obj);
+		statsChanged ();
+		console.log ("sendConfirmingEmail: obj == " + utils.jsonStringify (obj));
+		var params = {
+			title: config.confirmEmailSubject,
+			operationToConfirm: config.operationToConfirm,
+			confirmationUrl: urlWebApp + "userconfirms?emailConfirmCode=" + encodeURIComponent (magicString)
+			};
+		fs.readFile (config.fnameEmailTemplate, function (err, emailTemplate) {
+			if (err) {
+				const message = "Error reading email template.";
+				console.log ("sendConfirmingEmail: err.message == " + err.message);
+				callback ({message});
+				}
+			else {
+				var mailtext = utils.multipleReplaceAll (emailTemplate.toString (), params, false, "[%", "%]");
+				mail.send (email, params.title, mailtext, config.mailSender, function (err, data) {
+					if (err) {
+						callback (err);
+						}
+					else {
+						callback (undefined, obj);
+						}
+					});
+				const f = config.dataFolder + "lastmail.html";
+				utils.sureFilePath (f, function () {
+					fs.writeFile (f, mailtext, function (err) {
+						});
+					});
+				}
+			});
+		}
+	function receiveConfirmation (emailConfirmCode, callback) {
+		const urlWebApp = "http://" + config.myDomain + "/";
+		var urlRedirect = undefined;
+		stats.pendingConfirmations.forEach (function (item) {
+			if (item.magicString == emailConfirmCode) {
+				console.log (utils.jsonStringify (item));
+				
+				
+				if (config.addEmailToUserInDatabase !== undefined) { 
+					config.addEmailToUserInDatabase (item.screenname, item.email, item.magicString);
+					}
+				
+				urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + item.email + "&code=" + item.magicString;
+				
+				item.flDeleted = true; 
+				}
+			});
+		if (urlRedirect === undefined) {
+			urlRedirect = urlWebApp + "?failedLogin=true"; //add an error message here
+			}
+		console.log ("receiveConfirmation: urlRedirect == " + urlRedirect);
+		callback (urlRedirect);
+		}
+	function checkPendingConfirmations () {
+		var flChanged = false;
+		var newArray = new Array ();
+		stats.pendingConfirmations.forEach (function (item) {
+			if ((!item.flDeleted) && (utils.secondsSince (item.when) < config.confirmationExpiresAfter)) {
+				newArray.push (item);
+				}
+			else {
+				flChanged = true;
+				}
+			});
+		if (flChanged) {
+			stats.pendingConfirmations = newArray;
+			statsChanged ();
+			}
+		}
 
 function startup (options, callback) {
 	function readConfig (f, theConfig, flReportError, callback) { 
@@ -1098,14 +1190,26 @@ function startup (options, callback) {
 				}
 			}
 		function callWithScreenname (callback) {
-			davetwitter.getScreenName (token, secret, function (screenname) {
-				if (screenname === undefined) {
-					returnError ({message: "Can't do the thing you want because the accessToken is not valid."});    
-					}
-				else {
-					callback (screenname);
-					}
-				});
+			if (config.getScreenname === undefined) {
+				davetwitter.getScreenName (token, secret, function (screenname) {
+					if (screenname === undefined) {
+						returnError ({message: "Can't do the thing you want because the accessToken is not valid."});    
+						}
+					else {
+						callback (screenname);
+						}
+					});
+				}
+			else {
+				config.getScreenname (params, function (err, screenname) { //12/23/22 by DW
+					if (err) {
+						returnError (err);
+						}
+					else {
+						callback (screenname);
+						}
+					});
+				}
 			}
 		
 		if (config.httpRequest !== undefined) {
@@ -1270,6 +1374,14 @@ function startup (options, callback) {
 							userIsWhitelisted (screenname, httpReturn); //9/16/22 by DW
 							});
 						return (true); 
+					case "/sendconfirmingemail": //12/7/22 by DW
+						callWithScreenname (function (screenname) {
+							sendConfirmingEmail (params.email, screenname, httpReturn);
+							});
+						return (true);
+					case "/userconfirms": //12/7/22 by DW
+						receiveConfirmation (params.emailConfirmCode, httpReturnRedirect);
+						return (true);
 					
 					}
 				break;
@@ -1340,6 +1452,7 @@ function startup (options, callback) {
 		if (now.getMinutes () == 0) {
 			console.log ("\n" + now.toLocaleTimeString () + ": " + config.productName + " v" + config.version + " running on port " + config.port + ".\n");
 			}
+		checkPendingConfirmations (); //12/7/22 by DW
 		}
 	function everySecond () {
 		if (flStatsChanged) {
