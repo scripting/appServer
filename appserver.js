@@ -935,45 +935,60 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 //email registration -- 12/7/22 by DW
 	function sendConfirmingEmail (email, screenname, flNewUser=false, callback) {
-		const magicString = utils.getRandomPassword (10);
-		const urlWebApp = "http://" + config.myDomain + "/";
-		console.log ("sendConfirmingEmail: email == " + email + ", urlWebApp == " + urlWebApp);
-		var obj = {
-			magicString: magicString,
-			email: email,
-			flDeleted: false,
-			screenname,
-			flNewUser, //1/7/23 by DW
-			when: new Date ()
-			};
-		stats.pendingConfirmations.push (obj);
-		statsChanged ();
-		console.log ("sendConfirmingEmail: obj == " + utils.jsonStringify (obj));
-		var params = {
-			title: config.confirmEmailSubject,
-			operationToConfirm: config.operationToConfirm,
-			confirmationUrl: urlWebApp + "userconfirms?emailConfirmCode=" + encodeURIComponent (magicString)
-			};
-		fs.readFile (config.fnameEmailTemplate, function (err, emailTemplate) {
+		function getScreenname (callback) {
+			if (flNewUser) { //the caller had to provide it
+				callback (undefined, screenname);
+				}
+			else { //we have to look it up
+				config.getScreenNameFromEmail (email, callback);
+				}
+			}
+		getScreenname (function (err, screenname) {
 			if (err) {
-				const message = "Error reading email template.";
-				console.log ("sendConfirmingEmail: err.message == " + err.message);
-				callback ({message});
+				callback (err);
 				}
 			else {
-				var mailtext = utils.multipleReplaceAll (emailTemplate.toString (), params, false, "[%", "%]");
-				mail.send (email, params.title, mailtext, config.mailSender, function (err, data) {
+				const magicString = utils.getRandomPassword (10);
+				const urlWebApp = "http://" + config.myDomain + "/";
+				console.log ("sendConfirmingEmail: email == " + email + ", urlWebApp == " + urlWebApp);
+				var obj = {
+					magicString: magicString,
+					email: email,
+					flDeleted: false,
+					screenname,
+					flNewUser, //1/7/23 by DW
+					when: new Date ()
+					};
+				stats.pendingConfirmations.push (obj);
+				statsChanged ();
+				console.log ("sendConfirmingEmail: obj == " + utils.jsonStringify (obj));
+				var params = {
+					title: config.confirmEmailSubject,
+					operationToConfirm: config.operationToConfirm,
+					confirmationUrl: urlWebApp + "userconfirms?emailConfirmCode=" + encodeURIComponent (magicString)
+					};
+				fs.readFile (config.fnameEmailTemplate, function (err, emailTemplate) {
 					if (err) {
-						callback (err);
+						const message = "Error reading email template.";
+						console.log ("sendConfirmingEmail: err.message == " + err.message);
+						callback ({message});
 						}
 					else {
-						callback (undefined, {message: "Please check your email."});
+						var mailtext = utils.multipleReplaceAll (emailTemplate.toString (), params, false, "[%", "%]");
+						mail.send (email, params.title, mailtext, config.mailSender, function (err, data) {
+							if (err) {
+								callback (err);
+								}
+							else {
+								callback (undefined, {message: "Please check your email."});
+								}
+							});
+						const f = config.dataFolder + "lastmail.html";
+						utils.sureFilePath (f, function () {
+							fs.writeFile (f, mailtext, function (err) {
+								});
+							});
 						}
-					});
-				const f = config.dataFolder + "lastmail.html";
-				utils.sureFilePath (f, function () {
-					fs.writeFile (f, mailtext, function (err) {
-						});
 					});
 				}
 			});
@@ -1383,9 +1398,7 @@ function startup (options, callback) {
 							});
 						return (true); 
 					case "/sendconfirmingemail": //12/7/22 by DW
-						callWithScreenname (function (screenname) {
-							sendConfirmingEmail (params.email, screenname, false, httpReturn);
-							});
+						sendConfirmingEmail (params.email, undefined, false, httpReturn);
 						return (true);
 					case "/createnewuser": //1/7/23 by DW
 						sendConfirmingEmail (params.email, params.name, true, httpReturn);
