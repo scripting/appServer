@@ -1,4 +1,4 @@
-var myVersion = "0.6.0", myProductName = "daveAppServer";  
+var myVersion = "0.6.1", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -934,7 +934,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 //email registration -- 12/7/22 by DW
-	function sendConfirmingEmail (email, screenname, callback) {
+	function sendConfirmingEmail (email, screenname, flNewUser=false, callback) {
 		const magicString = utils.getRandomPassword (10);
 		const urlWebApp = "http://" + config.myDomain + "/";
 		console.log ("sendConfirmingEmail: email == " + email + ", urlWebApp == " + urlWebApp);
@@ -943,6 +943,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			email: email,
 			flDeleted: false,
 			screenname,
+			flNewUser, //1/7/23 by DW
 			when: new Date ()
 			};
 		stats.pendingConfirmations.push (obj);
@@ -966,7 +967,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						callback (err);
 						}
 					else {
-						callback (undefined, obj);
+						callback (undefined, {message: "Please check your email."});
 						}
 					});
 				const f = config.dataFolder + "lastmail.html";
@@ -979,26 +980,33 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function receiveConfirmation (emailConfirmCode, callback) {
 		const urlWebApp = "http://" + config.myDomain + "/";
-		var urlRedirect = undefined;
+		var urlRedirect = undefined, flFoundConfirm = false;
+		function encode (s) {
+			return (encodeURIComponent (s));
+			}
 		stats.pendingConfirmations.forEach (function (item) {
 			if (item.magicString == emailConfirmCode) {
-				console.log (utils.jsonStringify (item));
-				
-				
 				if (config.addEmailToUserInDatabase !== undefined) { 
-					config.addEmailToUserInDatabase (item.screenname, item.email, item.magicString);
+					config.addEmailToUserInDatabase (item.screenname, item.email, item.magicString, item.flNewUser, function (err, emailSecret) {
+						if (err) {
+							urlRedirect = urlWebApp + "?failedLogin=true&message=" + encode (err.message); 
+							}
+						else {
+							urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + item.email + "&code=" + encode (emailSecret) + "&screenname=" + encode (item.screenname);
+							item.flDeleted = true; 
+							}
+						callback (urlRedirect);
+						});
 					}
-				
-				urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + item.email + "&code=" + item.magicString;
-				
-				item.flDeleted = true; 
+				flFoundConfirm = true;
 				}
 			});
-		if (urlRedirect === undefined) {
-			urlRedirect = urlWebApp + "?failedLogin=true"; //add an error message here
+		if (!flFoundConfirm) {
+			if (urlRedirect === undefined) {
+				urlRedirect = urlWebApp + "?failedLogin=true&message=" + encode ("Can't find the pending confirmation."); 
+				}
+			callback (urlRedirect);
 			}
-		console.log ("receiveConfirmation: urlRedirect == " + urlRedirect);
-		callback (urlRedirect);
 		}
 	function checkPendingConfirmations () {
 		var flChanged = false;
@@ -1376,8 +1384,11 @@ function startup (options, callback) {
 						return (true); 
 					case "/sendconfirmingemail": //12/7/22 by DW
 						callWithScreenname (function (screenname) {
-							sendConfirmingEmail (params.email, screenname, httpReturn);
+							sendConfirmingEmail (params.email, screenname, false, httpReturn);
 							});
+						return (true);
+					case "/createnewuser": //1/7/23 by DW
+						sendConfirmingEmail (params.email, params.name, true, httpReturn);
 						return (true);
 					case "/userconfirms": //12/7/22 by DW
 						receiveConfirmation (params.emailConfirmCode, httpReturnRedirect);
