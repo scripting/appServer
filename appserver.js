@@ -1,4 +1,4 @@
-var myVersion = "0.6.3", myProductName = "daveAppServer";  
+var myVersion = "0.6.6", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -72,7 +72,6 @@ var stats = {
 	pendingConfirmations: new Array () //12/7/22 by DW
 	};
 const fnameStats = "stats.json";
-
 
 
 function userIsWhitelisted (screenname, callback) { //9/16/22 by DW
@@ -1078,7 +1077,28 @@ function startup (options, callback) {
 		config.twitter.twitterConsumerKey = config.twitterConsumerKey;
 		config.twitter.twitterConsumerSecret = config.twitterConsumerSecret;
 		config.twitter.userLogonCallback = userLogonCallback; //8/14/22 by DW
+		if (config.urlFavicon !== undefined) { //1/26/23 by DW
+			config.twitter.urlFavicon = config.urlFavicon;
+			}
 		davetwitter.start (config.twitter);
+		}
+	function startDavemail () { //1/23/23 by DW
+		var options;
+		if (config.smtpHost === undefined) {
+			options = {
+				flUseSes: true
+				};
+			}
+		else {
+			options = {
+				flUseSes: false,
+				smtpHost: config.smtpHost,
+				port: config.smtpPort,
+				username: config.smtpUsername,
+				password: config.smtpPassword
+				};
+			}
+		mail.start (options);
 		}
 	function handleHttpRequest (theRequest) {
 		const params = theRequest.params;
@@ -1503,6 +1523,7 @@ function startup (options, callback) {
 			console.log ("\n" + config.productName + " v" + config.version + " running on port " + config.port + ".\n");
 			console.log ("config == " + utils.jsonStringify (config)); 
 			startDavetwitter (handleHttpRequest);
+			startDavemail (); //1/23/23 by DW
 			if (config.myDomain === undefined) {
 				console.log ("startup: can't start the server because config.myDomain is not defined.");
 				}
