@@ -1,4 +1,4 @@
-var myVersion = "0.6.6", myProductName = "daveAppServer";  
+var myVersion = "0.6.9", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -38,8 +38,6 @@ var config = {
 	flAllowAccessFromAnywhere: true,
 	flPostEnabled: true, //12/21/20 by DW
 	flWebsocketEnabled: true,
-	urlServerForClient: "http://tagserver.opml.org/",
-	urlWebsocketServerForClient: "ws://tagserver.opml.org:1422/",
 	flEnableLogin: true, //user can log in via twitter
 	blockedAddresses: [], 
 	flForceTwitterLogin: true,
@@ -1528,8 +1526,12 @@ function startup (options, callback) {
 				console.log ("startup: can't start the server because config.myDomain is not defined.");
 				}
 			else {
-				config.urlServerForClient = "http://" + config.myDomain + "/";
-				config.urlWebsocketServerForClient = "ws://" + utils.stringNthField (config.myDomain, ":", 1) + ":" + config.websocketPort + "/";
+				if (config.urlServerForClient === undefined) { //1/30/23 by DW
+					config.urlServerForClient = "http://" + config.myDomain + "/";
+					}
+				if (config.urlWebsocketServerForClient === undefined) { //1/30/23 by DW
+					config.urlWebsocketServerForClient = "ws://" + utils.stringNthField (config.myDomain, ":", 1) + ":" + config.websocketPort + "/";
+					}
 				webSocketStartup (); 
 				setInterval (everySecond, 1000); 
 				utils.runEveryMinute (everyMinute); 

@@ -1,3 +1,11 @@
+1/30/23; 12:38:16 PM by DW
+
+If config.urlServerForClient is set, don't set it to the default. 
+
+Same with config.urlWebsocketServerForClient.
+
+Made sure that config.urlServerForClient and urlWebsocketServerForClient were undefined if not specified in config.json, so we would set the defaults when needed.
+
 #### 1/23/23; 3:35:25 PM by DW
 
 Support SMTP mail sending in addition to SES.
