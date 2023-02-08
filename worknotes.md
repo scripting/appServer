@@ -1,4 +1,10 @@
-1/30/23; 12:38:16 PM by DW
+#### 2/8/23; 8:57:32 AM by DW
+
+At startup we look for config.js in the same folder as the app, if it's present we require it, and use the result in place of config.json.
+
+This approach is needed in certain hosting situations including WordPress VIP. 
+
+#### 1/30/23; 12:38:16 PM by DW
 
 If config.urlServerForClient is set, don't set it to the default. 
 

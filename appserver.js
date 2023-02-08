@@ -1,4 +1,4 @@
-var myVersion = "0.6.9", myProductName = "daveAppServer";  
+var myVersion = "0.6.10", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -41,6 +41,7 @@ var config = {
 	flEnableLogin: true, //user can log in via twitter
 	blockedAddresses: [], 
 	flForceTwitterLogin: true,
+	flUseTwitterIdentity: false, //2/6/23 by DW
 	
 	flStorageEnabled: true,
 	privateFilesPath: "privateFiles/users/",
@@ -57,7 +58,14 @@ var config = {
 	operationToConfirm: "add your email address to your FeedLand user profile",
 	mailSender: "dave@scripting.com",
 	dataFolder: "data/",
-	confirmationExpiresAfter: 60 * 60 //emails expire after an hour
+	confirmationExpiresAfter: 60 * 60, //emails expire after an hour
+	
+	isUserInDatabase: function (screenname, callback) { //2/6/23 by DW
+		callback (false);
+		},
+	getScreenNameFromEmail: function (screenname, callback) { //2/7/23 by DW
+		callback (undefined, screenname);
+		}
 	};
 const fnameConfig = "config.json";
 
@@ -934,7 +942,15 @@ function cleanFileStats (stats) { //4/19/21 by DW
 	function sendConfirmingEmail (email, screenname, flNewUser=false, callback) {
 		function getScreenname (callback) {
 			if (flNewUser) { //the caller had to provide it
-				callback (undefined, screenname);
+				config.isUserInDatabase (screenname, function (flInDatabase) {
+					if (flInDatabase) {
+						const message = "Can't create the user \"" + screenname + "\" because there already is a user with that name."
+						callback ({message});
+						}
+					else {
+						callback (undefined, screenname);
+						}
+					});
 				}
 			else { //we have to look it up
 				config.getScreenNameFromEmail (email, callback);
@@ -946,7 +962,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			else {
 				const magicString = utils.getRandomPassword (10);
-				const urlWebApp = "http://" + config.myDomain + "/";
+				const urlWebApp = config.urlServerForEmail; //2/6/23 by DW
 				console.log ("sendConfirmingEmail: email == " + email + ", urlWebApp == " + urlWebApp);
 				var obj = {
 					magicString: magicString,
@@ -991,7 +1007,8 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 	function receiveConfirmation (emailConfirmCode, callback) {
-		const urlWebApp = "http://" + config.myDomain + "/";
+		const urlWebApp = config.urlServerForClient; //2/5/23 by DW
+		
 		var urlRedirect = undefined, flFoundConfirm = false;
 		function encode (s) {
 			return (encodeURIComponent (s));
@@ -1004,7 +1021,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							urlRedirect = urlWebApp + "?failedLogin=true&message=" + encode (err.message); 
 							}
 						else {
-							urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + item.email + "&code=" + encode (emailSecret) + "&screenname=" + encode (item.screenname);
+							urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + encode (item.email) + "&code=" + encode (emailSecret) + "&screenname=" + encode (item.screenname);
 							item.flDeleted = true; 
 							}
 						callback (urlRedirect);
@@ -1058,6 +1075,26 @@ function startup (options, callback) {
 				}
 			callback ();
 			});
+		}
+	function readConfigJson (callback) { //2/8/23 by DW
+		var configJs;
+		try {
+			configJs = require ("./config.js");
+			}
+		catch (err) { //try in the parent directory, assuming daveappserver is running in lib sub-directory
+			try {
+				configJs = require ("../config.js");
+				}
+			catch (err) { //fallback to reading config.json
+				readConfig (fnameConfig, config, true, callback);
+				return;
+				}
+			}
+		const jstruct = configJs;
+		for (var x in jstruct) {
+			config [x] = jstruct [x];
+			}
+		callback ();
 		}
 	function startDavetwitter (httpRequestCallback) { //patch over a design problem in starting up davetwitter and davehttp -- 7/20/20 by DW 
 		if (config.twitter === undefined) {
@@ -1188,6 +1225,7 @@ function startup (options, callback) {
 					flEnableLogin: config.flEnableLogin,
 					prefsPath: config.prefsPath,
 					docsPath: config.docsPath,
+					flUseTwitterIdentity: config.flUseTwitterIdentity, //2/6/23 by DW
 					idGitHubClient: config.githubClientId //11/9/21 by DW
 					};
 				if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
@@ -1231,25 +1269,37 @@ function startup (options, callback) {
 				}
 			}
 		function callWithScreenname (callback) {
-			if (config.getScreenname === undefined) {
-				davetwitter.getScreenName (token, secret, function (screenname) {
-					if (screenname === undefined) {
-						returnError ({message: "Can't do the thing you want because the accessToken is not valid."});    
-						}
-					else {
-						callback (screenname);
-						}
-					});
+			
+			if (config.flUseTwitterIdentity) { //2/6/23 by DW
+				if (config.getScreenname === undefined) {
+					davetwitter.getScreenName (token, secret, function (screenname) {
+						if (screenname === undefined) {
+							returnError ({message: "Can't do the thing you want because the accessToken is not valid."});    
+							}
+						else {
+							callback (screenname);
+							}
+						});
+					}
+				else {
+					config.getScreenname (params, function (err, screenname) { //12/23/22 by DW
+						if (err) {
+							returnError (err);
+							}
+						else {
+							callback (screenname);
+							}
+						});
+					}
 				}
 			else {
-				config.getScreenname (params, function (err, screenname) { //12/23/22 by DW
-					if (err) {
-						returnError (err);
-						}
-					else {
-						callback (screenname);
-						}
-					});
+				if ((params.emailaddress !== undefined) && (params.emailcode !== undefined)) { 
+					callback (params.emailaddress);  //obviously we have to check if it's valid
+					}
+				else {
+					const message = "Can't do what you wanted because the call is missing email authentication.";
+					returnError ({message});
+					}
 				}
 			}
 		
@@ -1509,7 +1559,7 @@ function startup (options, callback) {
 		}
 	
 	utils.copyScalars (options, config); //1/22/21 by DW
-	readConfig (fnameConfig, config, true, function () { //anything can be overridden by config.json
+	readConfigJson (function () { //readConfig (fnameConfig, config, true, function () { //anything can be overridden by config.json
 		readConfig (fnameStats, stats, false, function () {
 			if (process.env.PORT !== undefined) { //8/6/20 by DW
 				config.port = process.env.PORT;
