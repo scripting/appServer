@@ -1,4 +1,4 @@
-var myVersion = "0.6.10", myProductName = "daveAppServer";  
+var myVersion = "0.6.12", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -23,6 +23,7 @@ const folderToJson = require ("foldertojson");
 const zip = require ("davezip");
 const qs = require ("querystring");
 const mail = require ("davemail");
+const requireFromString = require ("require-from-string"); //2/10/23 by DW
 
 const whenStart = new Date ();
 
@@ -59,6 +60,8 @@ var config = {
 	mailSender: "dave@scripting.com",
 	dataFolder: "data/",
 	confirmationExpiresAfter: 60 * 60, //emails expire after an hour
+	
+	flSecureWebsocket: false, //2/8/23 by DW
 	
 	isUserInDatabase: function (screenname, callback) { //2/6/23 by DW
 		callback (false);
@@ -172,7 +175,7 @@ function checkPathForIllegalChars (path) {
 			return (false);
 			}
 		switch (ch) {
-			case "/": case "_": case "-": case ".":  case " ": case "*":
+			case "/": case "_": case "-": case ".":  case " ": case "*": case "@":
 				return (false);
 			}
 		return (true);
@@ -245,6 +248,10 @@ function cleanFileStats (stats) { //4/19/21 by DW
 //sockets
 	var theWsServer = undefined;
 	
+	function getWsProtocol () { //2/8/23 by DW
+		const protocol = (utils.getBoolean (config.flSecureWebsocket)) ? "wss://" : "ws://";
+		return (protocol);
+		}
 	function notifySocketSubscribers (verb, payload, flPayloadIsString, callbackToQualify) {
 		if (theWsServer !== undefined) {
 			var ctUpdates = 0, now = new Date (), ctTotalSockets = 0;
@@ -337,6 +344,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		
 		conn.on ("text", function (s) {
 			var words = s.split (" ");
+			console.log ("handleWebSocketConnection: s == " + s); //6/7/21 by DW
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
 				conn.appData.lastVerb = words [0];
@@ -1077,24 +1085,26 @@ function startup (options, callback) {
 			});
 		}
 	function readConfigJson (callback) { //2/8/23 by DW
-		var configJs;
-		try {
-			configJs = require ("./config.js");
-			}
-		catch (err) { //try in the parent directory, assuming daveappserver is running in lib sub-directory
-			try {
-				configJs = require ("../config.js");
+		fs.readFile ("config.js", function (err, scripttext) {
+			var flReadConfigJson = true;
+			if (!err) {
+				try {
+					scripttext = scripttext.toString ();
+					var jstruct = requireFromString (scripttext);
+					for (var x in jstruct) {
+						config [x] = jstruct [x];
+						}
+					flReadConfigJson = false;
+					callback ();
+					}
+				catch (err) {
+					console.log (err.message);
+					}
 				}
-			catch (err) { //fallback to reading config.json
+			if (flReadConfigJson) {
 				readConfig (fnameConfig, config, true, callback);
-				return;
 				}
-			}
-		const jstruct = configJs;
-		for (var x in jstruct) {
-			config [x] = jstruct [x];
-			}
-		callback ();
+			});
 		}
 	function startDavetwitter (httpRequestCallback) { //patch over a design problem in starting up davetwitter and davehttp -- 7/20/20 by DW 
 		if (config.twitter === undefined) {
@@ -1226,7 +1236,8 @@ function startup (options, callback) {
 					prefsPath: config.prefsPath,
 					docsPath: config.docsPath,
 					flUseTwitterIdentity: config.flUseTwitterIdentity, //2/6/23 by DW
-					idGitHubClient: config.githubClientId //11/9/21 by DW
+					idGitHubClient: config.githubClientId, //11/9/21 by DW
+					flWebsocketEnabled: config.flWebsocketEnabled //2/8/23 by DW
 					};
 				if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
 					for (var x in theRequest.addToPagetable) {
@@ -1558,6 +1569,7 @@ function startup (options, callback) {
 			}
 		}
 	
+	
 	utils.copyScalars (options, config); //1/22/21 by DW
 	readConfigJson (function () { //readConfig (fnameConfig, config, true, function () { //anything can be overridden by config.json
 		readConfig (fnameStats, stats, false, function () {
@@ -1580,7 +1592,7 @@ function startup (options, callback) {
 					config.urlServerForClient = "http://" + config.myDomain + "/";
 					}
 				if (config.urlWebsocketServerForClient === undefined) { //1/30/23 by DW
-					config.urlWebsocketServerForClient = "ws://" + utils.stringNthField (config.myDomain, ":", 1) + ":" + config.websocketPort + "/";
+					config.urlWebsocketServerForClient = getWsProtocol () + utils.stringNthField (config.myDomain, ":", 1) + ":" + config.websocketPort + "/";
 					}
 				webSocketStartup (); 
 				setInterval (everySecond, 1000); 

@@ -1,3 +1,7 @@
+#### 2/8/23; 10:03:25 AM by DW
+
+New config.json setting -- flSecureWebsocket. If true we initiate connections with wss:// otherwise ws://
+
 #### 2/8/23; 8:57:32 AM by DW
 
 At startup we look for config.js in the same folder as the app, if it's present we require it, and use the result in place of config.json.
@@ -38,7 +42,7 @@ Exporting getFilePath so FeedLand server can find the user's prefs.json file.
 
 New userLogonCallback callback. Called when the user has successfully logged in via davetwitter. We send back the information about the login, the user's screenname, userid, token and secret. 
 
-#### 8/10/22; 10:48:22 AM by DW -- 0.5.53, 0.5.54
+#### 8/10/22 by DW -- 0.5.53, 0.5.54
 
 In returnServerHomePage we add a new param to the addMacroToPagetable callback, the request object. 
 
