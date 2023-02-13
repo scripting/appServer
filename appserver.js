@@ -1,4 +1,4 @@
-var myVersion = "0.6.12", myProductName = "daveAppServer";  
+var myVersion = "0.6.14", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -335,6 +335,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				if (conn.appData !== undefined) { //it's one of ours
 					if (conn != theNewConnection) { //it's not the new one
 						if (conn.appData.screenname == screenname) {
+							console.log ("kissOtherLogonsGoodnight: \"" + conn.appData.screenname + "\" = \"" + screenname + "\""); //2/12/23 by DW
 							conn.sendText ("goodnight");
 							}
 						}
@@ -344,7 +345,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		
 		conn.on ("text", function (s) {
 			var words = s.split (" ");
-			console.log ("handleWebSocketConnection: s == " + s); //6/7/21 by DW
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
 				conn.appData.lastVerb = words [0];
@@ -353,17 +353,31 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						conn.appData.urlToWatch = utils.trimWhitespace (words [1]);
 						logToConsole (conn, conn.appData.lastVerb, conn.appData.urlToWatch);
 						break;
-					
 					case "user": //9/29/21 by DW
-						var token = words [1], secret = words [2];
-						conn.appData.twOauthToken = token;
-						conn.appData.twOauthTokenSecret = secret;
-						conn.appData.urlToWatch = "";
-						davetwitter.getScreenName (token, secret, function (screenname) {
-							conn.appData.screenname = screenname;
-							kissOtherLogonsGoodnight (screenname, conn); //12/14/21 by DW
-							logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
-							});
+						if (config.flUseTwitterIdentity) { //2/12/23 by DW
+							var token = words [1], secret = words [2];
+							conn.appData.twOauthToken = token;
+							conn.appData.twOauthTokenSecret = secret;
+							conn.appData.urlToWatch = "";
+							davetwitter.getScreenName (token, secret, function (screenname) {
+								conn.appData.screenname = screenname;
+								kissOtherLogonsGoodnight (screenname, conn); //12/14/21 by DW
+								logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
+								});
+							}
+						else {
+							var emailAddress = words [1], emailSecret = words [2];
+							config.isUserInDatabase (emailAddress, function (flInDatabase, userRec) {
+								if (flInDatabase) {
+									conn.appData.emailAddress = userRec.emailAddress;
+									conn.appData.screenname = userRec.emailAddress;
+									conn.appData.emailSecret = userRec.emailSecret;
+									conn.appData.urlToWatch = "";
+									kissOtherLogonsGoodnight (conn.appData.screenname, conn); 
+									logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
+									}
+								});
+							}
 						break;
 					
 					}
@@ -1305,7 +1319,21 @@ function startup (options, callback) {
 				}
 			else {
 				if ((params.emailaddress !== undefined) && (params.emailcode !== undefined)) { 
-					callback (params.emailaddress);  //obviously we have to check if it's valid
+					config.isUserInDatabase (params.emailaddress, function (flInDatabase, userRec) {
+						if (flInDatabase) {
+							if (params.emailcode == userRec.emailSecret) {
+								callback (params.emailaddress);  
+								}
+							else {
+								const message = "Can't do what you wanted the correct email authentication wasn't provided.";
+								returnError ({message});
+								}
+							}
+						else {
+							const message = "Can't do what you wanted because the email address isn't in the database.";
+							returnError ({message});
+							}
+						});
 					}
 				else {
 					const message = "Can't do what you wanted because the call is missing email authentication.";
