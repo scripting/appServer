@@ -1,4 +1,4 @@
-var myVersion = "0.6.14", myProductName = "daveAppServer";  
+var myVersion = "0.6.18", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -21,6 +21,7 @@ const davetwitter = require ("davetwitter");
 const filesystem = require ("davefilesystem"); 
 const folderToJson = require ("foldertojson");
 const zip = require ("davezip");
+const s3 = require ("daves3"); 
 const qs = require ("querystring");
 const mail = require ("davemail");
 const requireFromString = require ("require-from-string"); //2/10/23 by DW
@@ -62,6 +63,8 @@ var config = {
 	confirmationExpiresAfter: 60 * 60, //emails expire after an hour
 	
 	flSecureWebsocket: false, //2/8/23 by DW
+	
+	flUseS3ForStorage: false, //2/15/23 by DW
 	
 	isUserInDatabase: function (screenname, callback) { //2/6/23 by DW
 		callback (false);
@@ -237,7 +240,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	var cleanStats = {
 		size: stats.size, //number of bytes in file
-		whenAccessed: formatDate (stats.atime), //when last red
+		whenAccessed: formatDate (stats.atime), //when last read
 		whenCreated: formatDate (stats.birthtime),
 		whenModified: formatDate (stats.mtime),
 		flPrivate: stats.flPrivate
@@ -403,6 +406,38 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			}
 		}
+//s3 storage -- 2/14/23 by DW
+	
+	function getS3FilePath (screenname, relpath, flprivate) {
+		const folder = (flprivate) ? config.privateFilesPath : config.publicFilesPath;
+		const f = folder + screenname + "/" + relpath;
+		const s3path = config.s3PathForStorage + f;
+		return (s3path);
+		}
+	
+	function getFileFromS3 (screenname, relpath, flprivate, callback) {
+		function formatDate (d) {
+			return (new Date (d).toUTCString ());
+			}
+		s3.getObject (getS3FilePath (screenname, relpath, flprivate), function (err, data) {
+			if (err) {
+				callback (err);
+				}
+			else {
+				var data = {
+					filedata: data.Body.toString (),
+					filestats: {
+						whenModified: formatDate (data.LastModified)
+						}
+					};
+				callback (undefined, data);
+				}
+			});
+		}
+	function saveFileToS3 (screenname, relpath, type, flprivate, filetext, callback) {
+		const acl = undefined; //use the default
+		s3.newObject (getS3FilePath (screenname, relpath, flprivate), filetext, type, acl, callback);
+		}
 //storage functions
 	function getFilePath (screenname, relpath, flprivate) {
 		const folder = (flprivate) ? config.privateFilesPath : config.publicFilesPath;
@@ -432,35 +467,40 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function publishFile (screenname, relpath, type, flprivate, filetext, callback) {
 		if (config.flStorageEnabled) {
-			var f = getFilePath (screenname, relpath, flprivate);
-			utils.sureFilePath (f, function () {
-				var now = new Date ();
-				fs.writeFile (f, filetext, function (err) {
-					if (err) {
-						callback (err);
-						}
-					else {
-						var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
-						if (config.publishFile !== undefined) { //3/18/22 by DW
-							config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
+			if (config.flUseS3ForStorage) { 
+				saveFileToS3 (screenname, relpath, type, flprivate, filetext, callback);
+				}
+			else {
+				var f = getFilePath (screenname, relpath, flprivate);
+				utils.sureFilePath (f, function () {
+					var now = new Date ();
+					fs.writeFile (f, filetext, function (err) {
+						if (err) {
+							callback (err);
 							}
-						if (!flprivate) {
-							notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
-								if (conn.appData.urlToWatch == url) {
-									return (true);
-									}
-								else {
-									return (false);
-									}
+						else {
+							var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+							if (config.publishFile !== undefined) { //3/18/22 by DW
+								config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
+								}
+							if (!flprivate) {
+								notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
+									if (conn.appData.urlToWatch == url) {
+										return (true);
+										}
+									else {
+										return (false);
+										}
+									});
+								}
+							callback (undefined, {
+								url,
+								whenLastUpdate: now
 								});
 							}
-						callback (undefined, {
-							url,
-							whenLastUpdate: now
-							});
-						}
+						});
 					});
-				});
+				}
 			}
 		else {
 			callback ({message: "Can't publish the file because the feature is not enabled on the server."});
@@ -475,26 +515,31 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			callback (err);
 			}
 		if (config.flStorageEnabled) {
-			var f = getFilePath (screenname, relpath, flprivate);
-			fs.readFile (f, function (err, filetext) {
-				if (err) {
-					errcallback (err);
-					}
-				else {
-					fs.stat (f, function (err, stats) {
-						if (err) {
-							errcallback (err);
-							}
-						else {
-							var data = {
-								filedata: filetext.toString (),
-								filestats: cleanFileStats (stats)
-								};
-							callback (undefined, data);
-							}
-						});
-					}
-				});
+			if (config.flUseS3ForStorage) {
+				getFileFromS3 (screenname, relpath, flprivate, callback);
+				}
+			else {
+				var f = getFilePath (screenname, relpath, flprivate);
+				fs.readFile (f, function (err, filetext) {
+					if (err) {
+						errcallback (err);
+						}
+					else {
+						fs.stat (f, function (err, stats) {
+							if (err) {
+								errcallback (err);
+								}
+							else {
+								var data = {
+									filedata: filetext.toString (),
+									filestats: cleanFileStats (stats)
+									};
+								callback (undefined, data);
+								}
+							});
+						}
+					});
+				}
 			}
 		else {
 			callback ({message: "Can't publish the file because the feature is not enabled on the server."});
