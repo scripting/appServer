@@ -1,4 +1,4 @@
-var myVersion = "0.6.18", myProductName = "daveAppServer";  
+var myVersion = "0.6.19", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -1006,7 +1006,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 //email registration -- 12/7/22 by DW
-	function sendConfirmingEmail (email, screenname, flNewUser=false, callback) {
+	function sendConfirmingEmail (email, screenname, flNewUser=false, urlRedirect, callback) {
 		function getScreenname (callback) {
 			if (flNewUser) { //the caller had to provide it
 				config.isUserInDatabase (screenname, function (flInDatabase) {
@@ -1037,6 +1037,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					flDeleted: false,
 					screenname,
 					flNewUser, //1/7/23 by DW
+					urlRedirect, //3/3/23 by DW
 					when: new Date ()
 					};
 				stats.pendingConfirmations.push (obj);
@@ -1074,8 +1075,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 	function receiveConfirmation (emailConfirmCode, callback) {
-		const urlWebApp = config.urlServerForClient; //2/5/23 by DW
-		
+		var urlWebApp = config.urlServerForClient; //2/5/23 by DW
 		var urlRedirect = undefined, flFoundConfirm = false;
 		function encode (s) {
 			return (encodeURIComponent (s));
@@ -1083,6 +1083,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		stats.pendingConfirmations.forEach (function (item) {
 			if (item.magicString == emailConfirmCode) {
 				if (config.addEmailToUserInDatabase !== undefined) { 
+					if (item.urlRedirect !== undefined) { //3/3/23 by DW
+						urlWebApp = item.urlRedirect;
+						}
 					config.addEmailToUserInDatabase (item.screenname, item.email, item.magicString, item.flNewUser, function (err, emailSecret) {
 						if (err) {
 							urlRedirect = urlWebApp + "?failedLogin=true&message=" + encode (err.message); 
@@ -1550,10 +1553,10 @@ function startup (options, callback) {
 							});
 						return (true); 
 					case "/sendconfirmingemail": //12/7/22 by DW
-						sendConfirmingEmail (params.email, undefined, false, httpReturn);
+						sendConfirmingEmail (params.email, undefined, false, params.urlredirect, httpReturn); //3/3/23 by DW
 						return (true);
 					case "/createnewuser": //1/7/23 by DW
-						sendConfirmingEmail (params.email, params.name, true, httpReturn);
+						sendConfirmingEmail (params.email, params.name, true, params.urlredirect, httpReturn); //3/3/23 by DW
 						return (true);
 					case "/userconfirms": //12/7/22 by DW
 						receiveConfirmation (params.emailConfirmCode, httpReturnRedirect);

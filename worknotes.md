@@ -1,3 +1,9 @@
+#### 3/3/23; 10:49:28 AM by DW
+
+I want to be able to send a confirming email from Electric Drummer and have it return with the emailMemory record to a localhost address. 
+
+This means that the sendConfirmingEmail call must have a new parameter, urlredirect which, if specified, is where we redirect to on confirmation.
+
 #### 2/8/23; 10:03:25 AM by DW
 
 New config.json setting -- flSecureWebsocket. If true we initiate connections with wss:// otherwise ws://
