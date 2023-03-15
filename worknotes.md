@@ -1,3 +1,13 @@
+#### 3/8/23; 12:13:06 PM by DW
+
+email addresses become unicase.
+
+we do this by converting the email address as it enters the system from the client. 
+
+sendConfirmingEmail
+
+callWithScreenname
+
 #### 3/3/23; 10:49:28 AM by DW
 
 I want to be able to send a confirming email from Electric Drummer and have it return with the emailMemory record to a localhost address. 

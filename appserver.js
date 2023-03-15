@@ -1,4 +1,4 @@
-var myVersion = "0.6.19", myProductName = "daveAppServer";  
+var myVersion = "0.6.20", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -1007,6 +1007,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 //email registration -- 12/7/22 by DW
 	function sendConfirmingEmail (email, screenname, flNewUser=false, urlRedirect, callback) {
+		email = utils.stringLower (email); //3/8/23 by DW
 		function getScreenname (callback) {
 			if (flNewUser) { //the caller had to provide it
 				config.isUserInDatabase (screenname, function (flInDatabase) {
@@ -1342,7 +1343,6 @@ function startup (options, callback) {
 				}
 			}
 		function callWithScreenname (callback) {
-			
 			if (config.flUseTwitterIdentity) { //2/6/23 by DW
 				if (config.getScreenname === undefined) {
 					davetwitter.getScreenName (token, secret, function (screenname) {
@@ -1367,10 +1367,11 @@ function startup (options, callback) {
 				}
 			else {
 				if ((params.emailaddress !== undefined) && (params.emailcode !== undefined)) { 
-					config.isUserInDatabase (params.emailaddress, function (flInDatabase, userRec) {
+					const email = utils.stringLower (params.emailaddress); //3/8/23 by DW
+					config.isUserInDatabase (email, function (flInDatabase, userRec) {
 						if (flInDatabase) {
 							if (params.emailcode == userRec.emailSecret) {
-								callback (params.emailaddress);  
+								callback (email);  
 								}
 							else {
 								const message = "Can't do what you wanted the correct email authentication wasn't provided.";
