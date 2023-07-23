@@ -1,4 +1,4 @@
-var myVersion = "0.6.20", myProductName = "daveAppServer";  
+var myVersion = "0.6.24", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -1009,16 +1009,34 @@ function cleanFileStats (stats) { //4/19/21 by DW
 	function sendConfirmingEmail (email, screenname, flNewUser=false, urlRedirect, callback) {
 		email = utils.stringLower (email); //3/8/23 by DW
 		function getScreenname (callback) {
+			function containsIllegalCharacter (name) { //3/17/23 by DW
+				function isLegal (ch) {
+					return (utils.isAlpha (ch) || utils.isNumeric (ch) || (ch == "_") || (ch == ".") || (ch == "@"));
+					}
+				for (var i = 0; i < name.length; i++) {
+					let ch = name [i];
+					if (!isLegal (ch)) {
+						return (true);
+						}
+					}
+				return (false);
+				}
 			if (flNewUser) { //the caller had to provide it
-				config.isUserInDatabase (screenname, function (flInDatabase) {
-					if (flInDatabase) {
-						const message = "Can't create the user \"" + screenname + "\" because there already is a user with that name."
-						callback ({message});
-						}
-					else {
-						callback (undefined, screenname);
-						}
-					});
+				if (containsIllegalCharacter (screenname)) { //3/17/23 by DW
+					const message = "Can't create the user \"" + screenname + "\" because only alpha, numeric and underscore characters are allowed in names."
+					callback ({message});
+					}
+				else {
+					config.isUserInDatabase (screenname, function (flInDatabase) {
+						if (flInDatabase) {
+							const message = "Can't create the user \"" + screenname + "\" because there already is a user with that name."
+							callback ({message});
+							}
+						else {
+							callback (undefined, screenname);
+							}
+						});
+					}
 				}
 			else { //we have to look it up
 				config.getScreenNameFromEmail (email, callback);
@@ -1288,6 +1306,9 @@ function startup (options, callback) {
 						return (JSON.stringify (theArray));
 						}
 					}
+				
+				getPagetableForHomePage (function (err, pagetable) {
+					});
 				
 				var pagetable = {
 					productName: config.productName, 

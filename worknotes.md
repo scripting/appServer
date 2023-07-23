@@ -1,3 +1,7 @@
+#### 3/17/23; 12:27:58 PM by DW
+
+Only alpha, numeric and underscore characters allowed in user names.
+
 #### 3/8/23; 12:13:06 PM by DW
 
 email addresses become unicase.
