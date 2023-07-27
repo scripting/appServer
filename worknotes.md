@@ -1,3 +1,19 @@
+#### 7/27/23; 2:27:42 PM by DW
+
+dns.reverse can crash, so do the call in a try statement.
+
+#### 7/26/23; 3:15:15 PM by DW
+
+There was a stray bit of code that's first running today but was written on May 8 this year (that's the creation date on the outline element). 
+
+Obviously a direction I thought of going in but didn't.
+
+It made it into the published package and into the NPM version. 
+
+getPagetableForHomePage (function (err, pagetable) { 
+
+});
+
 #### 3/17/23; 12:27:58 PM by DW
 
 Only alpha, numeric and underscore characters allowed in user names.

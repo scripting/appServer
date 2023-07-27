@@ -1,4 +1,4 @@
-var myVersion = "0.6.24", myProductName = "daveAppServer";  
+var myVersion = "0.6.26", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -200,17 +200,24 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 			}
 		}
 	else {
-		dns.reverse (clientIp, function (err, domains) {
-			var name = clientIp;
-			if (!err) {
-				if (domains.length > 0) {
-					name = domains [0];
+		try { //7/27/23 by DW
+			dns.reverse (clientIp, function (err, domains) {
+				var name = clientIp;
+				if (!err) {
+					if (domains.length > 0) {
+						name = domains [0];
+						}
 					}
-				}
+				if (callback !== undefined) {
+					callback (name);
+					}
+				});
+			}
+		catch (err) {
 			if (callback !== undefined) {
 				callback (name);
 				}
-			});
+			}
 		}
 	}
 function getDomainNameVerb (clientIp, callback) { //2/27/21 by DW
@@ -1306,9 +1313,6 @@ function startup (options, callback) {
 						return (JSON.stringify (theArray));
 						}
 					}
-				
-				getPagetableForHomePage (function (err, pagetable) {
-					});
 				
 				var pagetable = {
 					productName: config.productName, 
