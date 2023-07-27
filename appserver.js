@@ -200,17 +200,22 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 			}
 		}
 	else {
-		dns.reverse (clientIp, function (err, domains) {
-			var name = clientIp;
-			if (!err) {
-				if (domains.length > 0) {
-					name = domains [0];
+		try {
+			dns.reverse (clientIp, function (err, domains) {
+				var name = clientIp;
+				if (!err) {
+					if (domains.length > 0) {
+						name = domains [0];
+						}
 					}
-				}
+				if (callback !== undefined) {
+					callback (name);
+					}
+				});
+		} catch (err) {
 			if (callback !== undefined) {
-				callback (name);
+				callback (clientIp);
 				}
-			});
 		}
 	}
 function getDomainNameVerb (clientIp, callback) { //2/27/21 by DW
