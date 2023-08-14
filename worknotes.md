@@ -1,3 +1,11 @@
+#### 8/14/23; 11:39:18 AM by DW
+
+We need the option of storing pending confirmations in a database, not in memory. 
+
+new config setting: flUseDatabaseForConfirmations, default false
+
+config.database must also be defined, but we don't check.
+
 #### 7/27/23; 2:27:42 PM by DW
 
 dns.reverse can crash, so do the call in a try statement.

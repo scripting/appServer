@@ -1,4 +1,4 @@
-var myVersion = "0.6.26", myProductName = "daveAppServer";  
+var myVersion = "0.6.33", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -25,6 +25,7 @@ const s3 = require ("daves3");
 const qs = require ("querystring");
 const mail = require ("davemail");
 const requireFromString = require ("require-from-string"); //2/10/23 by DW
+const davesql = require ("davesql"); //8/14/23 by DW
 
 const whenStart = new Date ();
 
@@ -65,6 +66,8 @@ var config = {
 	flSecureWebsocket: false, //2/8/23 by DW
 	
 	flUseS3ForStorage: false, //2/15/23 by DW
+	
+	flUseDatabaseForConfirmations: false, //8/14/23 by DW
 	
 	isUserInDatabase: function (screenname, callback) { //2/6/23 by DW
 		callback (false);
@@ -1013,6 +1016,93 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 //email registration -- 12/7/22 by DW
+	function addPendingConfirmation (theConfirmation, callback) { //8/14/23 by DW
+		if (config.flUseDatabaseForConfirmations) {
+			theConfirmation.whenCreated = theConfirmation.when;
+			delete theConfirmation.when;
+			
+			var sqltext = "replace into pendingConfirmations " + davesql.encodeValues (theConfirmation);
+			davesql.runSqltext (sqltext, function (err, result) {
+				if (err) {
+					callback (err);
+					}
+				else {
+					console.log ("addPendingConfirmation: email == " + theConfirmation.email);
+					callback (undefined);
+					}
+				});
+			}
+		else {
+			stats.pendingConfirmations.push (theConfirmation);
+			statsChanged ();
+			callback (undefined); //no error
+			}
+		}
+	function findPendingConfirmation (magicString, callback) { //8/14/23 by DW
+		if (config.flUseDatabaseForConfirmations) {
+			var sqltext = "select * from pendingConfirmations where magicString=" + davesql.encode (magicString) + ";";
+			davesql.runSqltext (sqltext, function (err, result) {
+				if (err) {
+					console.log ("findPendingConfirmation: err.message == " + err.message);
+					callback (err);
+					}
+				else {
+					if (result.length == 0) {
+						const message = "Can't find the pending confirmation.";
+						callback ({message});
+						}
+					else {
+						var theConfirmation = result [0];
+						if (theConfirmation.urlRedirect == null) {
+							theConfirmation.urlRedirect = undefined;
+							}
+						callback (undefined, theConfirmation);
+						}
+					}
+				});
+			}
+		else {
+			var flFoundConfirm = false;
+			stats.pendingConfirmations.forEach (function (item) {
+				if (item.magicString == emailConfirmCode) {
+					callback (undefined, item);
+					flFoundConfirm = true;
+					}
+				});
+			if (!flFoundConfirm) {
+				const message = "Can't find the pending confirmation.";
+				callback ({message});
+				}
+			}
+		}
+	function deletePendingConfirmation (item, callback) { //8/14/23 by DW
+		if (config.flUseDatabaseForConfirmations) {
+			}
+		else {
+			item.flDeleted = true; 
+			}
+		}
+	function checkPendingConfirmations (callback) { //8/14/23 by DW
+		if (config.flUseDatabaseForConfirmations) {
+			}
+		else {
+			var flChanged = false;
+			var newArray = new Array ();
+			stats.pendingConfirmations.forEach (function (item) {
+				if ((!item.flDeleted) && (utils.secondsSince (item.when) < config.confirmationExpiresAfter)) {
+					newArray.push (item);
+					}
+				else {
+					flChanged = true;
+					}
+				});
+			if (flChanged) {
+				stats.pendingConfirmations = newArray;
+				statsChanged ();
+				}
+			}
+		}
+	
 	function sendConfirmingEmail (email, screenname, flNewUser=false, urlRedirect, callback) {
 		email = utils.stringLower (email); //3/8/23 by DW
 		function getScreenname (callback) {
@@ -1066,34 +1156,39 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					urlRedirect, //3/3/23 by DW
 					when: new Date ()
 					};
-				stats.pendingConfirmations.push (obj);
-				statsChanged ();
-				console.log ("sendConfirmingEmail: obj == " + utils.jsonStringify (obj));
-				var params = {
-					title: config.confirmEmailSubject,
-					operationToConfirm: config.operationToConfirm,
-					confirmationUrl: urlWebApp + "userconfirms?emailConfirmCode=" + encodeURIComponent (magicString)
-					};
-				fs.readFile (config.fnameEmailTemplate, function (err, emailTemplate) {
+				addPendingConfirmation (obj, function (err) { //8/14/23 by DW
 					if (err) {
-						const message = "Error reading email template.";
-						console.log ("sendConfirmingEmail: err.message == " + err.message);
-						callback ({message});
+						callback (err);
 						}
 					else {
-						var mailtext = utils.multipleReplaceAll (emailTemplate.toString (), params, false, "[%", "%]");
-						mail.send (email, params.title, mailtext, config.mailSender, function (err, data) {
+						console.log ("sendConfirmingEmail: obj == " + utils.jsonStringify (obj));
+						var params = {
+							title: config.confirmEmailSubject,
+							operationToConfirm: config.operationToConfirm,
+							confirmationUrl: urlWebApp + "userconfirms?emailConfirmCode=" + encodeURIComponent (magicString)
+							};
+						fs.readFile (config.fnameEmailTemplate, function (err, emailTemplate) {
 							if (err) {
-								callback (err);
+								const message = "Error reading email template.";
+								console.log ("sendConfirmingEmail: err.message == " + err.message);
+								callback ({message});
 								}
 							else {
-								callback (undefined, {message: "Please check your email."});
+								var mailtext = utils.multipleReplaceAll (emailTemplate.toString (), params, false, "[%", "%]");
+								mail.send (email, params.title, mailtext, config.mailSender, function (err, data) {
+									if (err) {
+										callback (err);
+										}
+									else {
+										callback (undefined, {message: "Please check your email."});
+										}
+									});
+								const f = config.dataFolder + "lastmail.html";
+								utils.sureFilePath (f, function () {
+									fs.writeFile (f, mailtext, function (err) {
+										});
+									});
 								}
-							});
-						const f = config.dataFolder + "lastmail.html";
-						utils.sureFilePath (f, function () {
-							fs.writeFile (f, mailtext, function (err) {
-								});
 							});
 						}
 					});
@@ -1106,8 +1201,15 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		function encode (s) {
 			return (encodeURIComponent (s));
 			}
-		stats.pendingConfirmations.forEach (function (item) {
-			if (item.magicString == emailConfirmCode) {
+		
+		findPendingConfirmation (emailConfirmCode, function (err, item) {
+			if (err) {
+				if (urlRedirect === undefined) {
+					urlRedirect = urlWebApp;
+					}
+				callback (urlRedirect + "?failedLogin=true&message=" + encode (err.message));
+				}
+			else {
 				if (config.addEmailToUserInDatabase !== undefined) { 
 					if (item.urlRedirect !== undefined) { //3/3/23 by DW
 						urlWebApp = item.urlRedirect;
@@ -1118,36 +1220,13 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							}
 						else {
 							urlRedirect = urlWebApp + "?emailconfirmed=true&email=" + encode (item.email) + "&code=" + encode (emailSecret) + "&screenname=" + encode (item.screenname);
-							item.flDeleted = true; 
+							deletePendingConfirmation (item);
 							}
 						callback (urlRedirect);
 						});
 					}
-				flFoundConfirm = true;
 				}
 			});
-		if (!flFoundConfirm) {
-			if (urlRedirect === undefined) {
-				urlRedirect = urlWebApp + "?failedLogin=true&message=" + encode ("Can't find the pending confirmation."); 
-				}
-			callback (urlRedirect);
-			}
-		}
-	function checkPendingConfirmations () {
-		var flChanged = false;
-		var newArray = new Array ();
-		stats.pendingConfirmations.forEach (function (item) {
-			if ((!item.flDeleted) && (utils.secondsSince (item.when) < config.confirmationExpiresAfter)) {
-				newArray.push (item);
-				}
-			else {
-				flChanged = true;
-				}
-			});
-		if (flChanged) {
-			stats.pendingConfirmations = newArray;
-			statsChanged ();
-			}
 		}
 
 function startup (options, callback) {
