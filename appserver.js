@@ -1,4 +1,4 @@
-var myVersion = "0.6.33", myProductName = "daveAppServer";  
+var myVersion = "0.6.41", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -45,6 +45,7 @@ var config = {
 	blockedAddresses: [], 
 	flForceTwitterLogin: true,
 	flUseTwitterIdentity: false, //2/6/23 by DW
+	flTraceOnError: false, //8/15/23 by DW
 	
 	flStorageEnabled: true,
 	privateFilesPath: "privateFiles/users/",
@@ -61,7 +62,7 @@ var config = {
 	operationToConfirm: "add your email address to your FeedLand user profile",
 	mailSender: "dave@scripting.com",
 	dataFolder: "data/",
-	confirmationExpiresAfter: 60 * 60, //emails expire after an hour
+	confirmationExpiresAfter: 60 * 60 * 24, //emails expire after 24 hours
 	
 	flSecureWebsocket: false, //2/8/23 by DW
 	
@@ -1064,7 +1065,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		else {
 			var flFoundConfirm = false;
 			stats.pendingConfirmations.forEach (function (item) {
-				if (item.magicString == emailConfirmCode) {
+				if (item.magicString == magicString) {
 					callback (undefined, item);
 					flFoundConfirm = true;
 					}
@@ -1077,6 +1078,19 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function deletePendingConfirmation (item, callback) { //8/14/23 by DW
 		if (config.flUseDatabaseForConfirmations) {
+			const sqltext = "delete from pendingConfirmations where magicString = " + davesql.encode (item.magicString) + ";"; //8/15/23 by DW
+			davesql.runSqltext (sqltext, function (err, result) {
+				if (err) {
+					if (callback !== undefined) {
+						callback (err);
+						}
+					}
+				else {
+					if (callback !== undefined) {
+						callback (undefined);
+						}
+					}
+				});
 			}
 		else {
 			item.flDeleted = true; 
@@ -1084,6 +1098,19 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function checkPendingConfirmations (callback) { //8/14/23 by DW
 		if (config.flUseDatabaseForConfirmations) {
+			const sqltext = "delete from pendingConfirmations where whenCreated < now() - interval " + config.confirmationExpiresAfter + " minute;";
+			davesql.runSqltext (sqltext, function (err, result) {
+				if (err) {
+					if (callback !== undefined) {
+						callback (err);
+						}
+					}
+				else {
+					if (callback !== undefined) {
+						callback (undefined);
+						}
+					}
+				});
 			}
 		else {
 			var flChanged = false;
@@ -1283,6 +1310,7 @@ function startup (options, callback) {
 		config.twitter.flLogToConsole = config.flLogToConsole;
 		config.twitter.flAllowAccessFromAnywhere = config.flAllowAccessFromAnywhere;
 		config.twitter.flPostEnabled = config.flPostEnabled;
+		config.twitter.flTraceOnError = config.flTraceOnError; //8/15/23 by DW
 		config.twitter.blockedAddresses = config.blockedAddresses;
 		config.twitter.httpRequestCallback = httpRequestCallback;
 		config.twitter.http404Callback = http404Callback; //1/24/21 by DW
@@ -1735,8 +1763,8 @@ function startup (options, callback) {
 			}
 		if (now.getMinutes () == 0) {
 			console.log ("\n" + now.toLocaleTimeString () + ": " + config.productName + " v" + config.version + " running on port " + config.port + ".\n");
+			checkPendingConfirmations (); //12/7/22 by DW
 			}
-		checkPendingConfirmations (); //12/7/22 by DW
 		}
 	function everySecond () {
 		if (flStatsChanged) {

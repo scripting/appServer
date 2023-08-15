@@ -1,3 +1,7 @@
+#### 8/15/23; 6:54:54 PM by DW
+
+New config setting, flTraceOnError. Defaults false. If true, when davehttp handles a request, it gives you a stack trace that seems pretty useless and it hides where the actual error is happening. You can turn it back on if you feel it is useful. 
+
 #### 8/14/23; 11:39:18 AM by DW
 
 We need the option of storing pending confirmations in a database, not in memory. 
