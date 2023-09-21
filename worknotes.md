@@ -20,7 +20,7 @@ How to set up for WordPress
 
 3. Include this in the &lt;head> section of your home page HTML
 
-&lt;script src="//s3.amazonaws.com/scripting.com/code/wpidentity/client/api.js">&lt;/script>
+``&lt;script src="//s3.amazonaws.com/scripting.com/code/wpidentity/client/api.js">&lt;/script>``
 
 #### 9/10/23; 4:27:32 PM by DW -- v0.7.0
 
