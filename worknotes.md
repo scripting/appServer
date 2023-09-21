@@ -12,13 +12,13 @@ Reorganized returnServerHomePage so we read the template text after calling the 
 
 How to set up for WordPress
 
-First set up a new app <a href="https://developer.wordpress.com/apps/new/">here</a>. 
+1. First set up a new app <a href="https://developer.wordpress.com/apps/new/">here</a>. 
 
-There's a new section of config.json called wordpress. In it are these values:
+2. There's a new section of config.json called wordpress. In it are these values:
 
 ```JavaScript"wordpress": {	"clientId": 123456789,	"clientSecret": "xxx",	"urlRedirect": "https://myserver.com/callbackFromWordpress",	"scope": "global"	 }```
 
-Include this in the &lt;head> section of your home page HTML
+3. Include this in the &lt;head> section of your home page HTML
 
 &lt;script src="//s3.amazonaws.com/scripting.com/code/wpidentity/client/api.js">&lt;/script>
 
