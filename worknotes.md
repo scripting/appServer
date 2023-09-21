@@ -1,3 +1,33 @@
+#### 9/20/23; 10:33:40 AM by DW
+
+Two new optional callbacks, getStaticFile and publishStaticFile.
+
+FeedLand uses this to store static files in a database table instead of S3.
+
+#### 9/16/23; 10:46:52 AM by DW
+
+Reorganized returnServerHomePage so we read the template text after calling the callbacks. They can change the url of the home page source. This was needed when we added newsproduct rendering to the FeedLand server.
+
+#### 9/11/23; 10:34:58 AM by DW
+
+How to set up for WordPress
+
+First set up a new app <a href="https://developer.wordpress.com/apps/new/">here</a>. 
+
+There's a new section of config.json called wordpress. In it are these values:
+
+```JavaScript"wordpress": {	"clientId": 123456789,	"clientSecret": "xxx",	"urlRedirect": "https://myserver.com/callbackFromWordpress",	"scope": "global"	 }```
+
+Include this in the &lt;head> section of your home page HTML
+
+&lt;script src="//s3.amazonaws.com/scripting.com/code/wpidentity/client/api.js">&lt;/script>
+
+#### 9/10/23; 4:27:32 PM by DW -- v0.7.0
+
+WordPress functionality. An app running on daveappserver will be able to log the user on to WordPress, and perform basic operations like creating, updating and deleting posts, getting a list of all their sites. Using the wpidentity package. 
+
+There are two points of integration, at startup and when handling an http request. 
+
 #### 8/15/23; 6:54:54 PM by DW
 
 New config setting, flTraceOnError. Defaults false. If true, when davehttp handles a request, it gives you a stack trace that seems pretty useless and it hides where the actual error is happening. You can turn it back on if you feel it is useful. 

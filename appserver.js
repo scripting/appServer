@@ -1,4 +1,4 @@
-var myVersion = "0.6.41", myProductName = "daveAppServer";  
+var myVersion = "0.7.6", myProductName = "daveAppServer";  
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -26,6 +26,7 @@ const qs = require ("querystring");
 const mail = require ("davemail");
 const requireFromString = require ("require-from-string"); //2/10/23 by DW
 const davesql = require ("davesql"); //8/14/23 by DW
+const wordpress = require ("wpidentity"); //9/10/23 by DW
 
 const whenStart = new Date ();
 
@@ -477,44 +478,49 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			});
 		}
 	function publishFile (screenname, relpath, type, flprivate, filetext, callback) {
-		if (config.flStorageEnabled) {
-			if (config.flUseS3ForStorage) { 
-				saveFileToS3 (screenname, relpath, type, flprivate, filetext, callback);
-				}
-			else {
-				var f = getFilePath (screenname, relpath, flprivate);
-				utils.sureFilePath (f, function () {
-					var now = new Date ();
-					fs.writeFile (f, filetext, function (err) {
-						if (err) {
-							callback (err);
-							}
-						else {
-							var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
-							if (config.publishFile !== undefined) { //3/18/22 by DW
-								config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
-								}
-							if (!flprivate) {
-								notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
-									if (conn.appData.urlToWatch == url) {
-										return (true);
-										}
-									else {
-										return (false);
-										}
-									});
-								}
-							callback (undefined, {
-								url,
-								whenLastUpdate: now
-								});
-							}
-						});
-					});
-				}
+		if (config.publishStaticFile !== undefined) { //9/20/23 by DW
+			config.publishStaticFile (screenname, relpath, type, flprivate, filetext, callback);
 			}
 		else {
-			callback ({message: "Can't publish the file because the feature is not enabled on the server."});
+			if (config.flStorageEnabled) {
+				if (config.flUseS3ForStorage) { 
+					saveFileToS3 (screenname, relpath, type, flprivate, filetext, callback);
+					}
+				else {
+					var f = getFilePath (screenname, relpath, flprivate);
+					utils.sureFilePath (f, function () {
+						var now = new Date ();
+						fs.writeFile (f, filetext, function (err) {
+							if (err) {
+								callback (err);
+								}
+							else {
+								var url = (flprivate) ? undefined : config.urlServerForClient + screenname + "/" + relpath;
+								if (config.publishFile !== undefined) { //3/18/22 by DW
+									config.publishFile (f, screenname, relpath, type, flprivate, filetext, url);
+									}
+								if (!flprivate) {
+									notifySocketSubscribers ("update", filetext, true, function (conn) { //3/6/2 by DW -- payload is a string
+										if (conn.appData.urlToWatch == url) {
+											return (true);
+											}
+										else {
+											return (false);
+											}
+										});
+									}
+								callback (undefined, {
+									url,
+									whenLastUpdate: now
+									});
+								}
+							});
+						});
+					}
+				}
+			else {
+				callback ({message: "Can't publish the file because the feature is not enabled on the server."});
+				}
 			}
 		}
 	function getFile (screenname, relpath, flprivate, callback) {
@@ -525,35 +531,50 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			callback (err);
 			}
-		if (config.flStorageEnabled) {
-			if (config.flUseS3ForStorage) {
-				getFileFromS3 (screenname, relpath, flprivate, callback);
+		function getFromStaticFIlesystem () {
+			if (config.flStorageEnabled) {
+				if (config.flUseS3ForStorage) {
+					getFileFromS3 (screenname, relpath, flprivate, callback);
+					}
+				else {
+					var f = getFilePath (screenname, relpath, flprivate);
+					fs.readFile (f, function (err, filetext) {
+						if (err) {
+							errcallback (err);
+							}
+						else {
+							fs.stat (f, function (err, stats) {
+								if (err) {
+									errcallback (err);
+									}
+								else {
+									var data = {
+										filedata: filetext.toString (),
+										filestats: cleanFileStats (stats)
+										};
+									callback (undefined, data);
+									}
+								});
+							}
+						});
+					}
 				}
 			else {
-				var f = getFilePath (screenname, relpath, flprivate);
-				fs.readFile (f, function (err, filetext) {
-					if (err) {
-						errcallback (err);
-						}
-					else {
-						fs.stat (f, function (err, stats) {
-							if (err) {
-								errcallback (err);
-								}
-							else {
-								var data = {
-									filedata: filetext.toString (),
-									filestats: cleanFileStats (stats)
-									};
-								callback (undefined, data);
-								}
-							});
-						}
-					});
+				callback ({message: "Can't get the file because the feature is not enabled on the server."});
 				}
 			}
+		if (config.getStaticFile !== undefined) { //9/20/23 by DW
+			config.getStaticFile (screenname, relpath, flprivate, function (err, data) {
+				if (err) {
+					getFromStaticFIlesystem ();
+					}
+				else {
+					callback (undefined, data);
+					}
+				});
+			}
 		else {
-			callback ({message: "Can't publish the file because the feature is not enabled on the server."});
+			getFromStaticFIlesystem ();
 			}
 		}
 	function getFileList (screenname, flprivate, callback) {
@@ -1410,68 +1431,75 @@ function startup (options, callback) {
 				});
 			}
 		function returnServerHomePage () {
-			function servePage (templatetext) {
-				
-				function arrayToParam (theArray) { //7/21/22 by DW
-					if (theArray === undefined) {
-						return (undefined);
-						}
-					else {
-						return (JSON.stringify (theArray));
-						}
-					}
-				
-				var pagetable = {
-					productName: config.productName, 
-					productNameForDisplay: config.productNameForDisplay, 
-					version: config.version,
-					urlServerForClient: config.urlServerForClient,
-					urlWebsocketServerForClient: config.urlWebsocketServerForClient,
-					flEnableLogin: config.flEnableLogin,
-					prefsPath: config.prefsPath,
-					docsPath: config.docsPath,
-					flUseTwitterIdentity: config.flUseTwitterIdentity, //2/6/23 by DW
-					idGitHubClient: config.githubClientId, //11/9/21 by DW
-					flWebsocketEnabled: config.flWebsocketEnabled //2/8/23 by DW
-					};
-				if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
-					for (var x in theRequest.addToPagetable) {
-						pagetable [x] = theRequest.addToPagetable [x];
-						}
-					}
-				if (config.addMacroToPagetable !== undefined) {
-					config.addMacroToPagetable (pagetable, theRequest); //8/10/22 by DW
-					}
-				
-				function replaceAllAndReturnHtml () {
-					var pagetext = utils.multipleReplaceAll (templatetext.toString (), pagetable, false, "[%", "%]");
-					returnHtml (pagetext);
-					}
-				if (config.asyncAddMacroToPagetable !== undefined) { //8/10/22 by DW
-					config.asyncAddMacroToPagetable (pagetable, theRequest, function () {
-						replaceAllAndReturnHtml ();
+			var pagetable = {
+				productName: config.productName, 
+				productNameForDisplay: config.productNameForDisplay, 
+				version: config.version,
+				urlServerForClient: config.urlServerForClient,
+				urlWebsocketServerForClient: config.urlWebsocketServerForClient,
+				flEnableLogin: config.flEnableLogin,
+				prefsPath: config.prefsPath,
+				docsPath: config.docsPath,
+				flUseTwitterIdentity: config.flUseTwitterIdentity, //2/6/23 by DW
+				idGitHubClient: config.githubClientId, //11/9/21 by DW
+				flWebsocketEnabled: config.flWebsocketEnabled, //2/8/23 by DW
+				urlServerHomePageSource: config.urlServerHomePageSource, //9/16/23 by DW
+				pathServerHomePageSource: config.pathServerHomePageSource //9/16/23 by DW
+				};
+			function getTemplateText (callback) {
+				if (pagetable.pathServerHomePageSource !== undefined) {
+					fs.readFile (pagetable.pathServerHomePageSource, function (err, templatetext) {
+						if (err) {
+							callback (err);
+							}
+						else {
+							callback (undefined, templatetext);
+							}
 						});
 					}
 				else {
-					replaceAllAndReturnHtml ();
+					request (pagetable.urlServerHomePageSource, function (err, response, templatetext) {
+						if (err) {
+							callback (err);
+							}
+						else {
+							if ((response.statusCode >= 200) && (response.statusCode <= 299)) {
+								callback (undefined, templatetext);
+								}
+							else {
+								const message = "HTTP error == " + response.statusCode;
+								callback ({message});
+								}
+							}
+						});
 					}
 				}
-			if (config.pathServerHomePageSource !== undefined) {
-				fs.readFile (config.pathServerHomePageSource, function (err, templatetext) {
+			function buildAndServeHomepage () {
+				getTemplateText (function (err, templatetext) {
 					if (err) {
-						console.log ("returnServerHomePage: err.message == " + err.message + ", f == " + config.pathServerHomePageSource);
+						returnError (err);
 						}
 					else {
-						servePage (templatetext);
+						const pagetext = utils.multipleReplaceAll (templatetext.toString (), pagetable, false, "[%", "%]");
+						returnHtml (pagetext);
 						}
+					});
+				}
+			if (theRequest.addToPagetable !== undefined) { //3/9/21 by DW
+				for (var x in theRequest.addToPagetable) {
+					pagetable [x] = theRequest.addToPagetable [x];
+					}
+				}
+			if (config.addMacroToPagetable !== undefined) {
+				config.addMacroToPagetable (pagetable, theRequest); //8/10/22 by DW
+				}
+			if (config.asyncAddMacroToPagetable !== undefined) { //8/10/22 by DW
+				config.asyncAddMacroToPagetable (pagetable, theRequest, function () {
+					buildAndServeHomepage ();
 					});
 				}
 			else {
-				request (config.urlServerHomePageSource, function (err, response, templatetext) {
-					if (!err && response.statusCode == 200) {
-						servePage (templatetext);
-						}
-					});
+				buildAndServeHomepage ();
 				}
 			}
 		function callWithScreenname (callback) {
@@ -1528,6 +1556,11 @@ function startup (options, callback) {
 				return (true);
 				}
 			}
+		
+		if (wordpress.handleHttpRequest (theRequest)) { //9/10/23 by DW
+			return (true);
+			}
+		
 		switch (theRequest.lowermethod) {
 			case "post":
 				switch (theRequest.lowerpath) {
@@ -1778,7 +1811,6 @@ function startup (options, callback) {
 			}
 		}
 	
-	
 	utils.copyScalars (options, config); //1/22/21 by DW
 	readConfigJson (function () { //readConfig (fnameConfig, config, true, function () { //anything can be overridden by config.json
 		readConfig (fnameStats, stats, false, function () {
@@ -1793,6 +1825,12 @@ function startup (options, callback) {
 			console.log ("config == " + utils.jsonStringify (config)); 
 			startDavetwitter (handleHttpRequest);
 			startDavemail (); //1/23/23 by DW
+			
+			if (config.wordpress !== undefined) { //9/10/23 by DW
+				wordpress.start (config.wordpress, function () {
+					});
+				}
+			
 			if (config.myDomain === undefined) {
 				console.log ("startup: can't start the server because config.myDomain is not defined.");
 				}
