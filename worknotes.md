@@ -1,3 +1,7 @@
+#### 10/30/23; 1:52:52 PM by DW
+
+Fixed a crashing bug in http404Callback.
+
 #### 9/20/23; 10:33:40 AM by DW
 
 Two new optional callbacks, getStaticFile and publishStaticFile.

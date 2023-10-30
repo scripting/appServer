@@ -1,4 +1,4 @@
-var myVersion = "0.7.6", myProductName = "daveAppServer";  
+var myVersion = "0.7.7", myProductName = "daveAppServer";   
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -1734,14 +1734,14 @@ function startup (options, callback) {
 		return (false);
 		}
 	function http404Callback (theRequest) {
+		function return404 () {
+			theRequest.httpReturn (404, "text/plain", "Not found.");
+			}
+		function returnPlainText (s) {
+			theRequest.httpReturn (200, "text/plain", s.toString ());
+			}
 		if (config.flStorageEnabled) {
 			if (checkPathForIllegalChars (theRequest.path)) {
-				function return404 () {
-					theRequest.httpReturn (404, "text/plain", "Not found.");
-					}
-				function returnPlainText (s) {
-					theRequest.httpReturn (200, "text/plain", s.toString ());
-					}
 				
 				function getFileContent (screenname, relpath, flprivate, callback) { //9/8/21 by DW
 					var f = getFilePath (screenname, relpath, flprivate);
