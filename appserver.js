@@ -1276,6 +1276,35 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				}
 			});
 		}
+//wordpress -- 10/31/23 by DW
+	function wordpressHandleRequest (theRequest) {
+		function encode (s) {
+			return (encodeURIComponent (s));
+			}
+		function returnRedirect (url, code=302) {
+			var headers = {
+				location: url
+				};
+			theRequest.httpReturn (code, "text/plain", code + " REDIRECT", headers);
+			}
+		function useWordpressAccount (accessToken, theUserInfo) {
+			console.log ("useWordpressAccount: accessToken == " + accessToken);
+			console.log ("useWordpressAccount: theUserInfo == " + utils.jsonStringify (theUserInfo));
+			config.loginWordpressUser (accessToken, theUserInfo, function (err, userRec) {
+				if (err) {
+					returnRedirect (config.urlServerForClient + "?failedLogin=true&message=" + encode (err.message)); 
+					}
+				else {
+					returnRedirect (config.urlServerForClient + "?emailconfirmed=true&email=" + encode (userRec.emailAddress) + "&code=" + encode (userRec.emailSecret) + "&screenname=" + encode (userRec.screenname));
+					}
+				});
+			}
+		const options = {
+			useWordpressAccount
+			};
+		const flHandled = wordpress.handleHttpRequest (theRequest, options);
+		return (flHandled);
+		}
 
 function startup (options, callback) {
 	function readConfig (f, theConfig, flReportError, callback) { 
@@ -1557,7 +1586,7 @@ function startup (options, callback) {
 				}
 			}
 		
-		if (wordpress.handleHttpRequest (theRequest)) { //9/10/23 by DW
+		if (wordpressHandleRequest (theRequest)) { //9/10/23 by DW
 			return (true);
 			}
 		
