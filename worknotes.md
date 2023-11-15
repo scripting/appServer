@@ -1,3 +1,25 @@
+#### 11/14/23; 5:24:09 PM by DW
+
+Implement wordpress login for multiple instances.
+
+#### 11/11/23; 1:01:55 PM by DW
+
+Change config.flEnableSupervisorMode to default true instead of false.
+
+#### 10/31/23; 9:06:37 AM by DW
+
+WordPress login.
+
+Previously, we added code that let WordPress have access to every http event, this made it possible to develop the WordPress verbs in Drummer scripting. 
+
+Now we want to do more, allow an appserver client app to grab the logon event, when the user has given us permission and we've gotten an accessToken.
+
+So there's a callback, search for, that in turn calls a callback in the client app, that then does what it wants to with the login.
+
+In the case of FeedLand, the fit is pretty tight. FL needs what WP can provide -- a unique name and an email address. 
+
+This connection is made here in daveappserver.
+
 #### 10/30/23; 1:52:52 PM by DW
 
 Fixed a crashing bug in http404Callback.

@@ -1,4 +1,4 @@
-var myVersion = "0.7.7", myProductName = "daveAppServer";   
+var myVersion = "0.7.11", myProductName = "daveAppServer";   
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -71,11 +71,22 @@ var config = {
 	
 	flUseDatabaseForConfirmations: false, //8/14/23 by DW
 	
-	isUserInDatabase: function (screenname, callback) { //2/6/23 by DW
+	flAllowWordpressIdentity: true, //10/31/23 by DW
+	
+	flEnableSupervisorMode: true, //11/3/23 by DW
+	
+	findUserWithScreenname: function (screenname, callback) { //2/6/23 by DW
+		callback (false);
+		},
+	findUserWithEmail: function (emailaddress, callback) { //11/4/23 by DW
 		callback (false);
 		},
 	getScreenNameFromEmail: function (screenname, callback) { //2/7/23 by DW
 		callback (undefined, screenname);
+		},
+	
+	isUserAdmin: function (emailaddress, callback) { //11/3/23 by DW
+		callback (false);
 		}
 	};
 const fnameConfig = "config.json";
@@ -89,7 +100,6 @@ var stats = {
 	pendingConfirmations: new Array () //12/7/22 by DW
 	};
 const fnameStats = "stats.json";
-
 
 function userIsWhitelisted (screenname, callback) { //9/16/22 by DW
 	fs.readFile (fnameConfig, function (err, jsontext) {
@@ -382,7 +392,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							}
 						else {
 							var emailAddress = words [1], emailSecret = words [2];
-							config.isUserInDatabase (emailAddress, function (flInDatabase, userRec) {
+							config.findUserWithEmail (emailAddress, function (flInDatabase, userRec) {
 								if (flInDatabase) {
 									conn.appData.emailAddress = userRec.emailAddress;
 									conn.appData.screenname = userRec.emailAddress;
@@ -1172,7 +1182,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					callback ({message});
 					}
 				else {
-					config.isUserInDatabase (screenname, function (flInDatabase) {
+					config.findUserWithScreenname (screenname, function (flInDatabase) {
 						if (flInDatabase) {
 							const message = "Can't create the user \"" + screenname + "\" because there already is a user with that name."
 							callback ({message});
@@ -1299,9 +1309,39 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					}
 				});
 			}
-		const options = {
-			useWordpressAccount
-			};
+		function createPendingConfirmation (callback) { //11/14/23 by DW
+			const obj = {
+				magicString: utils.getRandomPassword (10),
+				flDeleted: false,
+				when: new Date ()
+				};
+			addPendingConfirmation (obj, function (err) { 
+				if (err) {
+					callback (err);
+					}
+				else {
+					callback (undefined, obj);
+					}
+				});
+			}
+		function checkPendingConfirmation (confirmCode, callback) { //11/14/23 by DW
+			findPendingConfirmation (confirmCode, function (err, item) {
+				deletePendingConfirmation (item);
+				callback (err); //return success or failure
+				});
+			}
+		
+		var options = undefined;
+		if (config.flAllowWordpressIdentity) {
+			options = {
+				useWordpressAccount
+				};
+			if (config.flUseDatabaseForConfirmations) { //11/14/23 by DW
+				options.createPendingConfirmation = createPendingConfirmation;
+				options.checkPendingConfirmation = checkPendingConfirmation;
+				}
+			}
+		
 		const flHandled = wordpress.handleHttpRequest (theRequest, options);
 		return (flHandled);
 		}
@@ -1532,6 +1572,40 @@ function startup (options, callback) {
 				}
 			}
 		function callWithScreenname (callback) {
+			
+			function actingAsFilter (email, callback) { //11/3/23 by DW
+				if (config.flEnableSupervisorMode) {
+					if (params.actingas === undefined) {
+						callback (email);
+						}
+					else {
+						config.isUserAdmin (email, function (flAdmin, userRec) {
+							if (flAdmin) {
+								config.findUserWithScreenname (params.actingas, function (flInDatabase, userRec) {
+									if (flInDatabase) {
+										if (userRec.emailAddress === undefined) {
+											callback (email);
+											}
+										else {
+											callback (userRec.emailAddress);
+											}
+										}
+									else {
+										callback (email); 
+										}
+									});
+								}
+							else {
+								callback (email);
+								}
+							});
+						}
+					}
+				else {
+					callback (email);
+					}
+				}
+			
 			if (config.flUseTwitterIdentity) { //2/6/23 by DW
 				if (config.getScreenname === undefined) {
 					davetwitter.getScreenName (token, secret, function (screenname) {
@@ -1557,10 +1631,13 @@ function startup (options, callback) {
 			else {
 				if ((params.emailaddress !== undefined) && (params.emailcode !== undefined)) { 
 					const email = utils.stringLower (params.emailaddress); //3/8/23 by DW
-					config.isUserInDatabase (email, function (flInDatabase, userRec) {
+					config.findUserWithEmail (email, function (flInDatabase, userRec) {
 						if (flInDatabase) {
 							if (params.emailcode == userRec.emailSecret) {
-								callback (email);  
+								actingAsFilter (email, function (whoActingAs) {
+									console.log ("\nappserver: whoActingAs == " + whoActingAs + "\n");
+									callback (whoActingAs);  
+									});
 								}
 							else {
 								const message = "Can't do what you wanted the correct email authentication wasn't provided.";
