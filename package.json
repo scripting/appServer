@@ -1,7 +1,7 @@
 {
 	"name": "daveappserver",
 	"description": "Factored code that was appearing in all my servers.",
-	"version": "0.7.11",
+	"version": "0.7.12",
 	"main": "appserver.js",
 	"repository": {
 		"type" : "git",
@@ -25,6 +25,6 @@
 		"daves3": "*",
 		"davehttp": "*",
 		"davemail": "*",
-		"wpidentity": "^0.4.11"
+		"wpidentity": "^0.4.12"
 		}
 	}

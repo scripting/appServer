@@ -1,6 +1,8 @@
 #### 11/14/23; 5:24:09 PM by DW
 
-Implement wordpress login for multiple instances.
+For WordPress identity to work on a multi-instance setup, we have to use the same confirmation approach we use for email signup. So every call to the WordPress event handler we add two callbacks to the options object to support creating an identification record in the database, and checking it on callback from WordPress that the value is correct in the state record then send back with the confirmation. 
+
+Note -- to get this functionality you must set config.flUseDatabaseForConfirmations to true. 
 
 #### 11/11/23; 1:01:55 PM by DW
 
