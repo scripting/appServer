@@ -1,3 +1,7 @@
+#### 10/6/24; 12:38:10 PM by DW
+
+wordpressHandleRequest/checkPendingConfirmation was trying to delete a non-existing confirmation record. Added a check for err that should have been there. 
+
 #### 11/14/23; 5:24:09 PM by DW
 
 For WordPress identity to work on a multi-instance setup, we have to use the same confirmation approach we use for email signup. So every call to the WordPress event handler we add two callbacks to the options object to support creating an identification record in the database, and checking it on callback from WordPress that the value is correct in the state record then send back with the confirmation. 

@@ -1,4 +1,4 @@
-var myVersion = "0.7.12", myProductName = "daveAppServer";   
+var myVersion = "0.7.15", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -1326,7 +1326,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			}
 		function checkPendingConfirmation (confirmCode, callback) { //11/14/23 by DW
 			findPendingConfirmation (confirmCode, function (err, item) {
-				deletePendingConfirmation (item);
+				if (!err) { //10/6/24 by DW
+					deletePendingConfirmation (item);
+					}
 				callback (err); //return success or failure
 				});
 			}

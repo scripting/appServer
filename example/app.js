@@ -1,4 +1,4 @@
-const daveappserver = require ("../appserver.js");
+const daveappserver = require ("daveappserver"); 
 const utils = require ("daveutils"); 
 
 var stats = {

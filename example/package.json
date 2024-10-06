@@ -6,6 +6,7 @@
 	"version": "0.4.0",
 	"dependencies" : {
 		"daveutils": "*",
+		"daves3": "*",
 		"davefilesystem": "*",
 		"daveappserver": "*"
 		} 
