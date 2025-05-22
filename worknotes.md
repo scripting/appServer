@@ -1,3 +1,11 @@
+#### 5/21/25; 11:09:32 AM by DW -- v0.7.16
+
+I was trying to debug why we're getting double notification of new items via the websockets interface. 
+
+It's a real mystery, but the problem is not in the database code, it's in the websockets code. 
+
+I'm going to handle the problem by writing a special server app that just spools out new items via websockets, all new code, let's see if we can find the doubling-up that way. 
+
 #### 10/6/24; 12:38:10 PM by DW
 
 wordpressHandleRequest/checkPendingConfirmation was trying to delete a non-existing confirmation record. Added a check for err that should have been there. 

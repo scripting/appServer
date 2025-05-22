@@ -1,4 +1,4 @@
-var myVersion = "0.7.15", myProductName = "daveAppServer";    
+var myVersion = "0.7.16", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -300,7 +300,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 							ctUpdates++;
 							}
 						catch (err) {
-							console.log ("notifySocketSubscribers: socket #" + i + ": error updating");
+							console.log ("notifySocketSubscribers: err.message == " + err.message);
 							}
 						}
 					}
@@ -319,6 +319,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function getOpenSocketsArray () { //return an array with data about open sockets
 		var theArray = new Array ();
+		function viewTime (when) { //5/21/25 by DW -- wanted to see more detail in time, include seconds
+			return (new Date (when).toLocaleTimeString ());
+			}
 		theWsServer.connections.forEach (function (conn, ix) {
 			if (conn.appData !== undefined) { //it's one of ours
 				theArray.push ({
@@ -326,8 +329,9 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					lastVerb: conn.appData.lastVerb,
 					urlToWatch: conn.appData.urlToWatch,
 					domain: conn.appData.domain,
-					whenStarted: utils.viewDate (conn.appData.whenStarted),
-					whenLastUpdate: utils.viewDate (conn.appData.whenLastUpdate)
+					whenStarted: viewTime (conn.appData.whenStarted),
+					whenLastUpdate: viewTime (conn.appData.whenLastUpdate),
+					emailAddress: conn.appData.emailAddress //5/21/25 by DW
 					});
 				}
 			});
@@ -335,6 +339,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		}
 	function handleWebSocketConnection (conn) { 
 		var now = new Date ();
+		
 		conn.appData = { //initialize
 			whenStarted: now,
 			ctUpdates: 0,
@@ -402,6 +407,8 @@ function cleanFileStats (stats) { //4/19/21 by DW
 									logToConsole (conn, conn.appData.lastVerb, conn.appData.screenname);
 									}
 								});
+							conn.appData.emailAddress = emailAddress; //5/21/25 by DW
+							conn.appData.emailSecret = emailSecret;
 							}
 						break;
 					
