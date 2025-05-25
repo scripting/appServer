@@ -1,3 +1,7 @@
+#### 5/25/25; 1:07:27 PM by DW -- v0.8.0
+
+I wrote the test app i mentioned in the previous note. Set it up to do what we do when sending notifications about new feed items, only instead of using the older websockets package, i use the new one. worked perfectly, no double-notifications. so now i'm going to convert to use the new package here. 
+
 #### 5/21/25; 11:09:32 AM by DW -- v0.7.16
 
 I was trying to debug why we're getting double notification of new items via the websockets interface. 

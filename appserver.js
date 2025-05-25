@@ -1,4 +1,4 @@
-var myVersion = "0.7.16", myProductName = "daveAppServer";    
+var myVersion = "0.8.0", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -14,7 +14,7 @@ const fs = require ("fs");
 var dns = require ("dns");
 var os = require ("os");
 const request = require ("request");
-const websocket = require ("nodejs-websocket"); 
+const websocket = require ("ws"); 
 const utils = require ("daveutils");
 const davehttp = require ("davehttp");
 const davetwitter = require ("davetwitter");
@@ -285,7 +285,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					payload = utils.jsonStringify (payload);
 					}
 				}
-			theWsServer.connections.forEach (function (conn, ix) {
+			theWsServer.clients.forEach (function (conn, ix) {
 				ctTotalSockets++;
 				if (conn.appData !== undefined) { //it's one of ours
 					var flnotify = true;
@@ -294,7 +294,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						}
 					if (flnotify) {
 						try {
-							conn.sendText (verb + "\r" + payload);
+							conn.send (verb + "\r" + payload); //5/25/25 by DW
 							conn.appData.whenLastUpdate = now;
 							conn.appData.ctUpdates++;
 							ctUpdates++;
@@ -314,7 +314,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			return (0);
 			}
 		else {
-			return (theWsServer.connections.length);
+			return (theWsServer.clients.length);
 			}
 		}
 	function getOpenSocketsArray () { //return an array with data about open sockets
@@ -322,7 +322,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		function viewTime (when) { //5/21/25 by DW -- wanted to see more detail in time, include seconds
 			return (new Date (when).toLocaleTimeString ());
 			}
-		theWsServer.connections.forEach (function (conn, ix) {
+		theWsServer.clients.forEach (function (conn, ix) {
 			if (conn.appData !== undefined) { //it's one of ours
 				theArray.push ({
 					arrayIndex: ix,
@@ -350,10 +350,10 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			};
 		
 		function logToConsole (conn, verb, value) {
-			getDomainName (conn.socket.remoteAddress, function (theName) { //log the request
+			getDomainName (conn._socket.remoteAddress, function (theName) { //log the request
 				var freemem = utils.gigabyteString (os.freemem ()), method = "WS:" + verb, now = new Date (); 
 				if (theName === undefined) {
-					theName = conn.socket.remoteAddress;
+					theName = conn._socket.remoteAddress;
 					}
 				console.log (now.toLocaleTimeString () + " " + freemem + " " + method + " " + value + " " + theName);
 				conn.appData.domain = theName; 
@@ -361,19 +361,19 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			}
 		
 		function kissOtherLogonsGoodnight (screenname, theNewConnection) { //12/14/21 by DW
-			theWsServer.connections.forEach (function (conn, ix) {
+			theWsServer.clients.forEach (function (conn, ix) {
 				if (conn.appData !== undefined) { //it's one of ours
 					if (conn != theNewConnection) { //it's not the new one
 						if (conn.appData.screenname == screenname) {
 							console.log ("kissOtherLogonsGoodnight: \"" + conn.appData.screenname + "\" = \"" + screenname + "\""); //2/12/23 by DW
-							conn.sendText ("goodnight");
+							conn.send ("goodnight"); //5/25/25 by DW
 							}
 						}
 					}
 				});
 			}
 		
-		conn.on ("text", function (s) {
+		conn.on ("message", function (s) {
 			var words = s.split (" ");
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
@@ -426,7 +426,8 @@ function cleanFileStats (stats) { //4/19/21 by DW
 	function webSocketStartup () {
 		if (config.flWebsocketEnabled) {
 			try {
-				theWsServer = websocket.createServer (handleWebSocketConnection);
+				theWsServer = new websocket.Server({port: config.websocketPort}); //5/25/25 by DW
+				theWsServer.on ("connection", handleWebSocketConnection); //5/25/25 by DW
 				console.log ("webSocketStartup: config.websocketPort == " + config.websocketPort);
 				theWsServer.listen (config.websocketPort);
 				}
