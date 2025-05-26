@@ -285,6 +285,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					payload = utils.jsonStringify (payload);
 					}
 				}
+			console.log ("\nnotifySocketSubscribers: getOpenSocketsArray () == " + utils.jsonStringify (getOpenSocketsArray ()) + "\n"); //6/7/21 by DW
 			theWsServer.clients.forEach (function (conn, ix) {
 				ctTotalSockets++;
 				if (conn.appData !== undefined) { //it's one of ours
@@ -294,6 +295,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						}
 					if (flnotify) {
 						try {
+							console.log ("notifySocketSubscribers: conn.appData.emailAddress == " + conn.appData.emailAddress); //5/25/25 by DW
 							conn.send (verb + "\r" + payload); //5/25/25 by DW
 							conn.appData.whenLastUpdate = now;
 							conn.appData.ctUpdates++;
@@ -325,7 +327,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 		theWsServer.clients.forEach (function (conn, ix) {
 			if (conn.appData !== undefined) { //it's one of ours
 				theArray.push ({
-					arrayIndex: ix,
 					lastVerb: conn.appData.lastVerb,
 					urlToWatch: conn.appData.urlToWatch,
 					domain: conn.appData.domain,
@@ -348,6 +349,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			urlToWatch: undefined,
 			domain: undefined
 			};
+		console.log ("\nhandleWebSocketConnection: getOpenSocketsArray () == " + utils.jsonStringify (getOpenSocketsArray ()) + "\n"); //6/7/21 by DW
 		
 		function logToConsole (conn, verb, value) {
 			getDomainName (conn._socket.remoteAddress, function (theName) { //log the request
@@ -374,6 +376,7 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			}
 		
 		conn.on ("message", function (s) {
+			s = s.toString (); //5/25/25 by DW
 			var words = s.split (" ");
 			if (words.length > 1) { //new protocol as of 11/29/15 by DW
 				conn.appData.whenLastUpdate = now;
