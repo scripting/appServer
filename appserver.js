@@ -1,4 +1,4 @@
-var myVersion = "0.8.0", myProductName = "daveAppServer";    
+var myVersion = "0.8.3", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -285,7 +285,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 					payload = utils.jsonStringify (payload);
 					}
 				}
-			console.log ("\nnotifySocketSubscribers: getOpenSocketsArray () == " + utils.jsonStringify (getOpenSocketsArray ()) + "\n"); //6/7/21 by DW
 			theWsServer.clients.forEach (function (conn, ix) {
 				ctTotalSockets++;
 				if (conn.appData !== undefined) { //it's one of ours
@@ -295,14 +294,12 @@ function cleanFileStats (stats) { //4/19/21 by DW
 						}
 					if (flnotify) {
 						try {
-							console.log ("notifySocketSubscribers: conn.appData.emailAddress == " + conn.appData.emailAddress); //5/25/25 by DW
 							conn.send (verb + "\r" + payload); //5/25/25 by DW
 							conn.appData.whenLastUpdate = now;
 							conn.appData.ctUpdates++;
 							ctUpdates++;
 							}
 						catch (err) {
-							console.log ("notifySocketSubscribers: err.message == " + err.message);
 							}
 						}
 					}
@@ -349,7 +346,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 			urlToWatch: undefined,
 			domain: undefined
 			};
-		console.log ("\nhandleWebSocketConnection: getOpenSocketsArray () == " + utils.jsonStringify (getOpenSocketsArray ()) + "\n"); //6/7/21 by DW
 		
 		function logToConsole (conn, verb, value) {
 			getDomainName (conn._socket.remoteAddress, function (theName) { //log the request

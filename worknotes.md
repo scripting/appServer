@@ -1,3 +1,9 @@
+#### 10/31/25; 7:42:48 AM by DW -- v0.8.2
+
+Need to require new version of wpIdentity.
+
+Turned off console messages in notifySocketSubscribers. 
+
 #### 5/25/25; 1:07:27 PM by DW -- v0.8.0
 
 I wrote the test app i mentioned in the previous note. Set it up to do what we do when sending notifications about new feed items, only instead of using the older websockets package, i use the new one. worked perfectly, no double-notifications. so now i'm going to convert to use the new package here. 
