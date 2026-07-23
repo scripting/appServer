@@ -1,4 +1,4 @@
-var myVersion = "0.8.3", myProductName = "daveAppServer";    
+var myVersion = "0.8.4", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -230,7 +230,7 @@ function getDomainName (clientIp, callback) { //11/14/15 by DW
 			}
 		catch (err) {
 			if (callback !== undefined) {
-				callback (name);
+				callback (clientIp); //7/17/26 by DW
 				}
 			}
 		}
