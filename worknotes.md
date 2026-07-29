@@ -1,3 +1,7 @@
+#### 7/29/26; 10:31:45 AM by DW
+
+Commented an extraneous harmless line, but it displays error message in console.. 
+
 #### 10/31/25; 7:42:48 AM by DW -- v0.8.2
 
 Need to require new version of wpIdentity.

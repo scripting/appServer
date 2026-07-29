@@ -1,4 +1,4 @@
-var myVersion = "0.8.4", myProductName = "daveAppServer";    
+var myVersion = "0.8.8", myProductName = "daveAppServer";    
 
 exports.start = startup; 
 exports.notifySocketSubscribers = notifySocketSubscribers;
@@ -428,7 +428,6 @@ function cleanFileStats (stats) { //4/19/21 by DW
 				theWsServer = new websocket.Server({port: config.websocketPort}); //5/25/25 by DW
 				theWsServer.on ("connection", handleWebSocketConnection); //5/25/25 by DW
 				console.log ("webSocketStartup: config.websocketPort == " + config.websocketPort);
-				theWsServer.listen (config.websocketPort);
 				}
 			catch (err) {
 				console.log ("webSocketStartup: err.message == " + err.message);
